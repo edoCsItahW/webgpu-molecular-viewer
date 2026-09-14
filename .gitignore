@@ -1,2 +1,10 @@
 # IDE
 **/.idea/
+**/.vscode/
+
+# frontend
+## other control by itself .gitignore
+
+## pnpm
+**/pnpm-lock.yaml
+**/pnpm-workspace.yaml
