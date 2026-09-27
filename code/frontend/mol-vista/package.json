@@ -1,5 +1,5 @@
 {
-    "name": "mol-vista",
+    "name": "@wmv/mol-vista",
     "version": "0.0.0",
     "private": true,
     "type": "module",
@@ -17,15 +17,18 @@
         "format": "oxfmt src/"
     },
     "dependencies": {
+        "@wmv/common": "link:../packages/common",
+        "@wmv/webgpu-engine": "link:../packages/webgpu-engine",
         "pinia": "^4.0.2",
         "vue": "^3.5.40",
+        "vue-i18n": "^11.4.10",
         "vue-router": "^5.2.0"
     },
     "devDependencies": {
         "@playwright/test": "^1.61.1",
         "@tsconfig/node24": "^24.0.4",
         "@types/jsdom": "^28.0.3",
-        "@types/node": "^24.13.3",
+        "@types/node": "^22.20.3",
         "@vitejs/plugin-vue": "^6.0.8",
         "@vitest/eslint-plugin": "^1.6.23",
         "@vue/eslint-config-typescript": "^14.9.0",
