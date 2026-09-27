@@ -498,8 +498,9 @@ export class Renderer {
      * 中间纹理只按名字声明，pass 按名字取用，实际的创建与尺寸重建由 PassManager 惰性完成。
      *
      * 与 passes.md §五 的两点差异（都是有意的）：
-     *   1. `scene-color` 与 `depth` 只在开启 SSAO 时声明 —— 它们只有 SSAOPass 会读，
-     *      无条件声明会让 PassManager 每帧白建两张全分辨率纹理。
+     *   1. `scene-color` 只在开启 SSAO 时声明；`depth` 在开启 SSAO 或 Picking 时声明
+     *      —— SSAOPass 会采样 depth，PickingPass 需要一张可清的深度附着做遮挡，
+     *      两者都依赖同一张中间纹理；无条件声明会让 PassManager 每帧白建全分辨率纹理。
      *   2. `depth` 的格式取 `gpu.options.depthFormat` 而不是写死 'depth24plus'，
      *      避免 GPUContext 换了深度格式后这里漂移（同 PipelineManager 的自动填充理由）。
      *
@@ -517,17 +518,21 @@ export class Renderer {
                 usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING
             });
 
-            this.passes.declareTexture("depth", {
-                format: this.gpu.options.depthFormat,
-                usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING
-            });
-
             this.passes.declareTexture("ssao", {
                 format: "r8unorm",
                 usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
                 scale: 0.5
             });
         }
+
+        // depth 中间纹理被 SSAO（采样）与 Picking（作为可清深度附着）共同依赖，
+        // 任一开启都必须声明。仅 Picking 开启时 PBR 仍写交换链的 frame.depthView，
+        // 这张 depth 只供 PickingPass 自行 clear 后绘制，互不干扰。
+        if (useSsao || usePicking)
+            this.passes.declareTexture("depth", {
+                format: this.gpu.options.depthFormat,
+                usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING
+            });
 
         if (usePicking)
             this.passes.declareTexture("pick-id", {
