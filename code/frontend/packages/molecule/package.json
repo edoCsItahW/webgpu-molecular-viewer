@@ -10,5 +10,10 @@
     },
     "files": [
         "dist"
-    ]
+    ],
+    "dependencies": {
+        "@wmv/common": "workspace:*",
+        "@wmv/structure": "workspace:*",
+        "@wmv/mathematical": "workspace:*"
+    }
 }
