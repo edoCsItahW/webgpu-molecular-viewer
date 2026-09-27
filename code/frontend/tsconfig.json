@@ -1,0 +1,17 @@
+{
+    "files": [],
+    "references": [
+        {
+            "path": "packages/webgpu-engine"
+        },
+        {
+            "path": "packages/mathematical"
+        },
+        {
+            "path": "packages/molecule"
+        },
+        {
+            "path": "packages/common"
+        }
+    ]
+}
