@@ -13,12 +13,18 @@
  * @desc
  * @copyright CC BY-NC-SA 2026. All rights reserved.
  * */
+import '@/assets/styles/index.sass';
 import createI18nInstance from '@/utils/locales/i18n';
 import { createPinia } from 'pinia';
 import { createApp } from 'vue';
 
 import router from './router';
 import App from './App.vue';
+
+// 应用启动前的全局副作用：把 <html data-theme> 设为初始主题。
+// 主题令牌已通过 _theme.sass 挂载，这里只决定初始值。
+// 后续 MV-ThemeSwitcher 会读写这个属性并监听 prefers-color-scheme。
+document.documentElement.setAttribute('data-theme', 'dark');
 
 const app = createApp(App);
 
