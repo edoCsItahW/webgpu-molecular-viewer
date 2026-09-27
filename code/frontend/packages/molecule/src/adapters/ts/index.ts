@@ -6,11 +6,16 @@
 // permission, please contact the author: edocsitahw@qq.com
 
 /**
- * @file index.d.ts
+ * @file index.ts
  * @author edocsitahw
  * @version 1.1
- * @date 2026/09/17 14:53
- * @desc
+ * @date 2026/09/27 00:00
+ * @desc TS 适配器集合：内置解析器、结构源、键感知、空几何、CPU 模拟。
  * @copyright CC BY-NC-SA 2026. All rights reserved.
  * */
-export * from "./math";
+
+export * from "./parse";
+export * from "./TsStructureSource";
+export * from "./TsBondPerception";
+export * from "./NullGeometryPort";
+export * from "./TsCpuSimulationBackend";
