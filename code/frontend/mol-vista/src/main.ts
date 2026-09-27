@@ -13,6 +13,7 @@
  * @desc
  * @copyright CC BY-NC-SA 2026. All rights reserved.
  * */
+import createI18nInstance from '@/utils/locales/i18n';
 import { createPinia } from 'pinia';
 import { createApp } from 'vue';
 
@@ -22,6 +23,7 @@ import App from './App.vue';
 const app = createApp(App);
 
 app.use(createPinia());
+app.use(await createI18nInstance())
 app.use(router);
 
 app.mount('#app');
