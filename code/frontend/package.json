@@ -1,0 +1,8 @@
+{
+    "name": "wmv-frontend",
+    "private": true,
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/edoCsItahW/webgpu-molecular-viewer.git"
+    }
+}

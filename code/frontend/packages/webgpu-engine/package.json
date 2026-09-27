@@ -1,0 +1,21 @@
+{
+    "name": "@wmv/webgpu-engine",
+    "version": "1.0.0",
+    "type": "module",
+    "main": "./dist/index.js",
+    "exports": {
+        ".": {
+            "import": "./dist/index.js"
+        }
+    },
+    "files": [
+        "dist"
+    ],
+    "dependencies": {
+        "@wmv/common": "workspace:*",
+        "@wmv/mathematical": "workspace:*"
+    },
+    "devDependencies": {
+        "@webgpu/types": "^0.1.72"
+    }
+}

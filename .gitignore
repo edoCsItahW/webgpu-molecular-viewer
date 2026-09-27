@@ -4,7 +4,12 @@
 
 # frontend
 ## other control by itself .gitignore
+**/node_modules/
+**/dist/
 
 ## pnpm
 **/pnpm-lock.yaml
 **/pnpm-workspace.yaml
+
+# backend
+**/__pycache__/
