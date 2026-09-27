@@ -1,0 +1,82 @@
+// Copyright (c) 2026. All rights reserved.
+// This source code is licensed under the CC BY-NC-SA
+// (Creative Commons Attribution-NonCommercial-NoDerivatives) License, By Xiao Songtao.
+// This software is protected by copyright law. Reproduction, distribution, or use for commercial
+// purposes is prohibited without the author's permission. If you have any questions or require
+// permission, please contact the author: edocsitahw@qq.com
+
+/*!
+ * @file _theme.sass
+ * @author edocsitahw
+ * @version 1.1
+ * @date 2026/09/27 15:00
+ * @desc 主题令牌。明/暗双主题通过 <html data-theme="dark|light"> 切换；只切 CSS 变量，不改组件样式（见 ui.md §八）。
+ * @copyright CC BY-NC-SA 2026. All rights reserved.
+ */
+
+html
+    // 字体族（主题无关，直接挂在根上）
+    --font-ui:   ui-sans-serif, system-ui, -apple-system, "Segoe UI", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", Roboto, sans-serif
+    --font-mono: ui-monospace, "SFMono-Regular", "SF Mono", Menlo, Consolas, "Liberation Mono", monospace
+
+    &[data-theme="light"]
+        color-scheme: light
+
+        --bg-app:      #f1f1ef
+        --bg-panel:    #fbfbfa
+        --bg-sunken:   #e8e8e5
+        --bg-hover:    #eeeeea
+        --bg-glass:    rgba(251, 251, 250, .88)
+
+        --line:        #e0e0dc
+        --line-strong: #c9c9c2
+
+        --fg:          #15171b
+        --fg-muted:    #5a6069
+        --fg-faint:    #8b9199
+
+        --accent:      #1b62d6
+        --accent-soft: #e6eefc
+        --accent-fg:   #ffffff
+
+        --ok:   #0f7a55
+        --warn: #a86400
+
+        --grid:  rgba(20, 25, 35, .045)
+        --vig:   rgba(20, 25, 35, .06)
+
+        --atom-stroke: rgba(10, 14, 20, .26)
+        --bond:        #8e939c
+
+        --shadow-pop: 0 2px 10px rgba(20, 25, 35, .12)
+
+    &[data-theme="dark"]
+        color-scheme: dark
+
+        --bg-app:      #0b0d11
+        --bg-panel:    #101319
+        --bg-sunken:   #080a0d
+        --bg-hover:    #171b23
+        --bg-glass:    rgba(16, 19, 25, .86)
+
+        --line:        #1e232c
+        --line-strong: #2f3642
+
+        --fg:          #e3e7ee
+        --fg-muted:    #98a1b0
+        --fg-faint:    #666f7e
+
+        --accent:      #5b9bff
+        --accent-soft: rgba(91, 155, 255, .14)
+        --accent-fg:   #06111f
+
+        --ok:   #3fbf8f
+        --warn: #e0a33a
+
+        --grid:  rgba(255, 255, 255, .032)
+        --vig:   rgba(0, 0, 0, .42)
+
+        --atom-stroke: rgba(255, 255, 255, .10)
+        --bond:        #3a4049
+
+        --shadow-pop: 0 2px 14px rgba(0, 0, 0, .45)

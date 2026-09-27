@@ -1,0 +1,63 @@
+// Copyright (c) 2026. All rights reserved.
+// This source code is licensed under the CC BY-NC-SA
+// (Creative Commons Attribution-NonCommercial-NoDerivatives) License, By Xiao Songtao.
+// This software is protected by copyright law. Reproduction, distribution, or use for commercial
+// purposes is prohibited without the author's permission. If you have any questions or require
+// permission, please contact the author: edocsitahw@qq.com
+
+/*!
+ * @file _mixins.sass
+ * @author edocsitahw
+ * @version 1.1
+ * @date 2026/09/27 15:00
+ * @desc 公用 Sass mixin。响应式断点参考 ui.md §九。
+ * @copyright CC BY-NC-SA 2026. All rights reserved.
+ */
+@use 'sass:map'
+@use './tokens' as *
+
+
+/// 响应式媒体查询：收窄布局
+/// @param {number} $bp 断点像素值
+/// @content 在该断点以下生效的样式
+@mixin below($bp)
+    @media (max-width: $bp)
+        @content
+
+
+/// 浮层毛玻璃外观（顶栏 HUD / 工具条共享）
+@mixin glass-surface
+    background: var(--bg-glass)
+    border: 1px solid var(--line)
+    backdrop-filter: blur(10px)
+    -webkit-backdrop-filter: blur(10px)
+    box-shadow: var(--shadow-pop)
+
+
+/// 单行省略
+@mixin ellipsis
+    overflow: hidden
+    text-overflow: ellipsis
+    white-space: nowrap
+
+
+/// flex 居中
+@mixin center
+    display: flex
+    align-items: center
+    justify-content: center
+
+
+/// 滚动条样式（面板主体共享）
+@mixin thin-scrollbar
+    scrollbar-width: thin
+    scrollbar-color: var(--line-strong) transparent
+
+    &::-webkit-scrollbar
+        width: 9px
+
+    &::-webkit-scrollbar-thumb
+        background: var(--line-strong)
+        border-radius: 99px
+        border: 3px solid transparent
+        background-clip: content-box
