@@ -46,6 +46,9 @@ export class GPUContext {
 
     #disposed = false;
 
+    /** 尺寸超限的警告只打一次，避免每帧刷屏 */
+    #sizeWarned = false;
+
     private resizeObserver?: ResizeObserver;
 
     private depthTexture?: GPUTexture;
@@ -211,8 +214,27 @@ export class GPUContext {
 
     private syncSize(): boolean {
         const dpr = window.devicePixelRatio || 1;
-        const w = Math.max(1, Math.floor(this.opts.canvas.clientWidth * dpr));
-        const h = Math.max(1, Math.floor(this.opts.canvas.clientHeight * dpr));
+        const limit = this.device.limits.maxTextureDimension2D;
+
+        let w = Math.max(1, Math.floor(this.opts.canvas.clientWidth * dpr));
+        let h = Math.max(1, Math.floor(this.opts.canvas.clientHeight * dpr));
+
+        // 夹住上限：canvas 的 CSS 尺寸若依赖自身 width/height 属性，会出现"越改越大"的反馈，
+        // 最终超过 maxTextureDimension2D → 交换链创建失败 → 每帧 GPUValidationError 刷屏而画面全黑。
+        // 这里只夹住并警告一次，让问题在控制台里可见（真正的修法是让 canvas 的 CSS 尺寸与属性解耦）。
+        if (w > limit || h > limit) {
+            if (!this.#sizeWarned) {
+                this.#sizeWarned = true;
+
+                console.warn(
+                    `MsgId: canvas 物理尺寸 ${w}x${h} 超过设备上限 ${limit}，已夹住。` +
+                    "请检查 canvas 的 CSS 尺寸是否依赖自身 width/height 属性（会形成自我放大的反馈）。"
+                );
+            }
+
+            w = Math.min(w, limit);
+            h = Math.min(h, limit);
+        }
 
         if (w === this.#width && h === this.#height && this.opts.canvas.width === w && this.opts.canvas.height === h)
             return false;

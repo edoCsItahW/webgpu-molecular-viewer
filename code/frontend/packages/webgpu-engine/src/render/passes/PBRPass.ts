@@ -139,7 +139,15 @@ export class PBRPass implements Pass {
             },
             primitive: {
                 topology: "triangle-list",
-                cullMode: "back"
+                // 暂不剔除背面：WebGPU 的 frontFace 字面量（默认 'ccw'）与几何绕序的对应关系
+                // 取决于"framebuffer 的 y 轴向下"这一约定，本机尚未实测；而"绕序与剔除方向不匹配"
+                // 会让所有球面整体不可见（只剩内表面 → 亮度≈背景色 → 视口一片黑）。
+                // 对不透明凸体（球）来说深度测试已经决定了可见面，关闭剔除只多画一遍背面
+                // （片段着色器无 discard/无 UAV 写入，驱动会做早期深度测试挡掉）。
+                // 若要开回来：先在本机确认 frontFace 语义（GL 习惯用 'ccw'，Vulkan 习惯用 'cw'），
+                // 再与 SphereGeometry 的绕序对齐；引入 ribbon / surface 等开放曲面时，
+                // 应按材质配置 side，而不是在这里全局写死。
+                cullMode: "none"
             },
             // 写交换链时跟随 GPUContext 的 MSAA；写中间纹理时中间纹理是单采样的
             multisample: {count: this.offscreen ? 1 : renderer.gpu.options.sampleCount},

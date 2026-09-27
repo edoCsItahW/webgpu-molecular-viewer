@@ -17,6 +17,8 @@
         "format": "oxfmt src/"
     },
     "dependencies": {
+        "@rdkit/rdkit": "^2026.3.6",
+        "@vueuse/core": "^15.0.0",
         "@wmv/common": "link:../packages/common",
         "@wmv/webgpu-engine": "link:../packages/webgpu-engine",
         "pinia": "^4.0.2",

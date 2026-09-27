@@ -147,7 +147,9 @@ export class PickingPass implements Pass {
             },
             primitive: {
                 topology: "triangle-list",
-                cullMode: "back"
+                // 与 PBRPass 保持一致：剔除方向必须与几何绕序匹配，否则拾取到的表面与
+                // 画面看到的表面不是同一个（详见 PBRPass 中同一处的说明）。
+                cullMode: "none"
             },
             // pick 纹理是单采样的中间纹理
             multisample: {count: 1},

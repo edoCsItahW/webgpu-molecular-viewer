@@ -15,7 +15,7 @@
  * */
 export default {
     common: {
-        projectName: "MolScope",
+        projectName: "Mol-Vista",
         notAvailable: "Unavailable",
         cancel: "Cancel",
         retry: "Retry",
@@ -23,11 +23,20 @@ export default {
         ok: "OK"
     },
     mainView: {
-        subTitle: "WebGPU Molecular Workbench"
+        subTitle: "WebGPU Molecular Workbench",
+        viewport: {
+            toolbar: {
+                ariaLabel: "Viewport toolbar"
+            },
+            hud: {
+                ariaLabel: "Performance monitor"
+            }
+        }
     },
     topbar: {
         importStructure: "Import structure",
         fitView: "Fit view",
+        themeAria: "Theme switcher",
         doc: {
             ariaLabel: "Structure metadata",
             atoms: "atoms"
@@ -44,17 +53,21 @@ export default {
         import: "Import",
         dropzone: {
             prompt: "Drop PDB / SDF file",
-            hint: "or click to browse local files"
+            hint: "or click to browse local files",
+            parsing: "Parsing molecule…"
         },
         chains: {
             title: "Chains",
             count: "{shown} / {total}",
             peptide: "Peptide {id}",
-            water: "Water molecules"
+            water: "Water molecules",
+            unknown: "Unknown chain",
+            empty: "No chain data"
         },
         legend: {
             title: "Element legend",
-            scheme: "CPK"
+            scheme: "CPK",
+            empty: "No element data"
         }
     },
     viewport: {
