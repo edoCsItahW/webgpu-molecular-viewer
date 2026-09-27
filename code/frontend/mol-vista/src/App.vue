@@ -22,12 +22,26 @@
  * */
 import { defineComponent } from "vue";
 
-export default defineComponent({
-    name: "App",
-
-});
+export default defineComponent({ name: "App" });
 </script>
 
 <style lang="sass">
+
+    @use "@/assets/styles/theme" as *
+
+    html, body, #app
+        font-family: 'Inter', sans-serif
+        padding: 0
+        margin: 0
+        width: 100%
+        height: 100%
+
+    h1, h2, h3, h4, h5, h6
+        margin: 0
+        padding: 0
+
+    a
+        text-decoration: none
+        color: unset
 
 </style>

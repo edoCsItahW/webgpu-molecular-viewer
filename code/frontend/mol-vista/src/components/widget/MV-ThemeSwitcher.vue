@@ -11,7 +11,7 @@
     <div
         class="mv-theme-switcher mvts-seg"
         role="group"
-        :aria-label="$t('topbar.theme')"
+        :aria-label="$t('topbar.themeAria')"
     >
         <button
             v-for="opt in options"

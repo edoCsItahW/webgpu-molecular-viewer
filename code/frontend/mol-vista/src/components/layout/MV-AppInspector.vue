@@ -12,22 +12,17 @@
         <mv-tab-bar v-model="activeTab" :tabs="tabs" />
 
         <div class="mai-body">
-            <!--
-              - 三个 tabpanel：检查 / 渲染 / 模拟。
-              - 当前为静态占位 —— 各 tab 的业务内容（原子卡片、统计、模式选择器、模拟传输等）
-              - 属于 components/molecule 层（ui.md §3.3 ⬜），待实现后以子组件注入。
-              - 用 v-show 而非 v-if 保留组件树，避免子组件反复挂载。
-              -->
+            <!-- 三个 tabpanel：检查 / 渲染 / 模拟 -->
             <section v-show="activeTab === 'inspect'" class="mai-tabpanel">
-                <p class="mai-empty">{{ t('inspector.empty.inspect') }}</p>
+                <mv-inspect-tab />
             </section>
 
             <section v-show="activeTab === 'render'" class="mai-tabpanel">
-                <p class="mai-empty">{{ t('inspector.empty.render') }}</p>
+                <mv-render-tab />
             </section>
 
             <section v-show="activeTab === 'simulate'" class="mai-tabpanel">
-                <p class="mai-empty">{{ t('inspector.empty.simulate') }}</p>
+                <mv-simulate-tab />
             </section>
         </div>
     </aside>
@@ -40,14 +35,15 @@
  * @version 1.1
  * @date 2026/09/27 17:00
  * @desc 右栏编排块。Tab 切换：检查 / 渲染 / 模拟（ui.md §二）。
- *       本组件只负责 tab 容器与切换；各 tab 的业务内容由 molecule 层子组件填充
- *       （AtomInfoCard / MoleculeStats / DisplayModePicker / SimulationTransport 等，当前 ⬜）。
- *       占位空状态遵循 ui.md §七：能力缺失时给出说明，不假装可用。
+ *       各 tab 的业务内容由 molecule 层子组件填充（MV-InspectTab / MV-RenderTab / MV-SimulateTab）。
  * @copyright CC BY-NC-SA
  * */
 import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import MvTabBar from '@/components/base/MV-TabBar.vue';
+import MvInspectTab from '@/components/molecule/MV-InspectTab.vue';
+import MvRenderTab from '@/components/molecule/MV-RenderTab.vue';
+import MvSimulateTab from '@/components/molecule/MV-SimulateTab.vue';
 
 const { t } = useI18n();
 
