@@ -8,14 +8,18 @@
   -->
 
 <template>
-    <div class="mv-main-view">
+
+    <div class="mv-main-view mmv">
+
         <mv-app-top-bar
             @import="onImport"
             @fit="onFit"
         />
 
         <div class="mmv-workspace">
+
             <mv-app-structure-panel
+                ref="structurePanelRef"
                 @import="onImport"
                 @show-all="onShowAll"
                 @toggle-chain="onToggleChain"
@@ -23,13 +27,16 @@
             />
 
             <!-- 唯一视口宿主（ui.md §二/§五）：顶栏不再嵌套 molecule-viewer -->
-            <mv-molecule-viewer ref="viewerRef" />
+            <mv-molecule-viewer ref="viewerRef"/>
 
-            <mv-app-inspector />
+            <mv-app-inspector/>
+
         </div>
 
-        <mv-app-status-bar />
+        <mv-app-status-bar/>
+
     </div>
+
 </template>
 
 <script setup lang="ts">
@@ -45,54 +52,57 @@
  *       转发到 useWorkbench 命令（ui.md §四：UI 只发命令）。
  * @copyright CC BY-NC-SA
  * */
-import { ref } from 'vue';
-import MvAppTopBar from '@/components/layout/MV-AppTopBar.vue';
 import MvAppStructurePanel from '@/components/layout/MV-AppStructurePanel.vue';
+import MvMoleculeViewer from '@/components/molecule/MV-MoleculeViewer.vue';
 import MvAppInspector from '@/components/layout/MV-AppInspector.vue';
 import MvAppStatusBar from '@/components/layout/MV-AppStatusBar.vue';
-import MvMoleculeViewer from '@/components/molecule/MV-MoleculeViewer.vue';
-import type { Optional } from '@/types';
+import MvAppTopBar from '@/components/layout/MV-AppTopBar.vue';
+
+import type {Optional} from '@/types';
+import {ref} from 'vue';
+
 
 const viewerRef = ref<Optional<InstanceType<typeof MvMoleculeViewer>>>();
+const structurePanelRef = ref<Optional<InstanceType<typeof MvAppStructurePanel>>>();
 
-// 占位命令处理器 —— Workbench 接入后替换为 wb.loadStructure / wb.fitView / wb.setFilter 等
 function onImport(): void {
-    // TODO: 打开文件选择器 → wb.loadStructure({ kind: 'file', bytes, name })
+    // 顶栏 import 按钮：委托给结构面板打开文件选择器
+    structurePanelRef.value?.triggerFileSelect();
 }
 
 function onFit(): void {
-    // TODO: wb.fitView()
+    viewerRef.value?.fit();
 }
 
 function onShowAll(): void {
-    // TODO: wb.setFilter({ chains: 'all' })
+    // TODO: 由 store 统一管理链可见性后，重置所有链为可见
 }
 
 function onToggleChain(_id: string): void {
-    // TODO: 切换某条链可见性 → wb.setFilter(...)
+    // TODO: 由 store 统一管理链可见性
 }
 
 function onDrop(_files: File[]): void {
-    // TODO: 取首个文件 → wb.loadStructure({ kind: 'file', bytes, name })
+    // 结构面板内部已处理文件解析，此处仅作事件占位
 }
 </script>
 
 <style lang="sass" scoped>
 @use '@/assets/styles/mixins' as *
 
-.mv-main-view
+.mmv
     display: grid
     grid-template-rows: 46px minmax(0, 1fr) 26px
-    height: 100vh
+    height: 100%
 
-.mmv-workspace
-    display: grid
-    grid-template-columns: 268px minmax(0, 1fr) 330px
-    min-height: 0
+    &-workspace
+        display: grid
+        grid-template-columns: 268px minmax(0, 1fr) 330px
+        min-height: 0
 
-    +below(1180px)
-        grid-template-columns: 232px minmax(0, 1fr) 300px
+        +below(1180px)
+            grid-template-columns: 232px minmax(0, 1fr) 300px
 
-    +below(940px)
-        grid-template-columns: 1fr 330px
+        +below(940px)
+            grid-template-columns: 1fr 330px
 </style>

@@ -52,7 +52,7 @@ export const useLocaleStore = defineStore('locale', () => {
         const messages = await load(code);
 
         i18n.locale.value = code;
-        i18n.setLocaleMessage(code, messages);
+        i18n.setLocaleMessage(code, messages as unknown as MessageSchema);
 
         locale.value = code;
 

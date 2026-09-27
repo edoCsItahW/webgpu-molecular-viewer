@@ -56,8 +56,11 @@ export class SphereGeometry extends Geometry {
                 const first = lat * (widthSegments + 1) + lon;
                 const second = first + widthSegments + 1;
 
-                indices.push(first, second, first + 1);
-                indices.push(second, second + 1, first + 1);
+                // 绕序必须与"法线朝外"一致：按顶点顺序用右手定则算出的法线要指向球外。
+                // 写反的后果：配合 cullMode:'back' 时朝向观察者的外表面被整片剔除，
+                // 画面只剩背向观察者的内表面（其 dot(N, L) < 0，亮度≈环境光≈背景色 → 看起来就是一片黑）。
+                indices.push(first, first + 1, second);
+                indices.push(second, first + 1, second + 1);
             }
         }
 
