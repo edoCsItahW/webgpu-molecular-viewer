@@ -1,0 +1,63 @@
+{
+    "availableLanguages": [
+        {
+            "code": "en-US",
+            "name": "English",
+            "nativeName": "English",
+            "flag": "🇺🇸",
+            "dir": "ltr",
+            "dateFormat": "MM/DD/YYYY",
+            "timeFormat": "HH:mm",
+            "currency": "USD",
+            "enabled": true,
+            "fallback": true
+        },
+        {
+            "code": "zh-Hans",
+            "name": "Chinese (Simplified)",
+            "nativeName": "简体中文",
+            "flag": "🇨🇳",
+            "dir": "ltr",
+            "dateFormat": "YYYY-MM-DD",
+            "timeFormat": "HH:mm",
+            "currency": "CNY",
+            "enabled": true,
+            "fallback": false
+        }
+    ],
+    "defaultLanguage": "zh-Hans",
+    "autoDetect": true,
+    "fallbackLocale": "zh-Hans",
+    "pluralizationRules": {},
+    "numberFormats": {
+        "en-US": {
+            "currency": {
+                "style": "currency",
+                "currency": "USD",
+                "currencyDisplay": "symbol"
+            }
+        },
+        "zh-Hans": {
+            "currency": {
+                "style": "currency",
+                "currency": "CNY",
+                "currencyDisplay": "symbol"
+            }
+        }
+    },
+    "datetimeFormats": {
+        "en-US": {
+            "short": {
+                "year": "numeric",
+                "month": "short",
+                "day": "numeric"
+            },
+            "long": {
+                "year": "numeric",
+                "month": "long",
+                "day": "numeric",
+                "weekday": "long"
+            }
+        }
+    }
+}
