@@ -139,6 +139,11 @@ export default {
                 wireframe: "线框",
                 cartoon: "卡通"
             },
+            capability: {
+                cartoon: "当前结构不含二级结构信息，卡通模式不可用",
+                charge: "当前结构不含电荷信息，按电荷着色不可用",
+                secondary: "当前结构不含二级结构信息，按二级结构着色不可用"
+            },
             colorScheme: "着色方案",
             colorSchemes: {
                 element: "元素 CPK",

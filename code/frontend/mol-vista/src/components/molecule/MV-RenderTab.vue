@@ -68,18 +68,40 @@ import { useMoleculeStore, type DisplayMode, type ColorScheme } from '@/stores/m
 const { t } = useI18n();
 const store = useMoleculeStore();
 
+/**
+ * 能力探测：缺数据的功能必须"禁用 + 说明原因"，而不是让它看起来能用却没效果。
+ * 演示数据既没有电荷列也没有二级结构；接入解析器后这里会自然变成数据驱动（docs/architecture/04 §6）。
+ */
+const hasCharges = computed(() => store.atoms.some((a) => typeof a.charge === 'number'));
+const hasSecondaryStructure = computed(() => false);
+
 const displayModeOptions = computed(() => ([
     { value: 'ballStick' as DisplayMode, label: t('inspector.render.displayModes.ballStick') },
     { value: 'spaceFill' as DisplayMode, label: t('inspector.render.displayModes.spaceFill') },
     { value: 'wireframe' as DisplayMode, label: t('inspector.render.displayModes.wireframe') },
-    { value: 'cartoon' as DisplayMode, label: t('inspector.render.displayModes.cartoon') },
+    {
+        value: 'cartoon' as DisplayMode,
+        label: t('inspector.render.displayModes.cartoon'),
+        disabled: !hasSecondaryStructure.value,
+        hint: t('inspector.render.capability.cartoon'),
+    },
 ]));
 
 const colorSchemeOptions = computed(() => ([
     { value: 'element' as ColorScheme, label: t('inspector.render.colorSchemes.element') },
     { value: 'chain' as ColorScheme, label: t('inspector.render.colorSchemes.chain') },
-    { value: 'charge' as ColorScheme, label: t('inspector.render.colorSchemes.charge') },
-    { value: 'secondary' as ColorScheme, label: t('inspector.render.colorSchemes.secondary') },
+    {
+        value: 'charge' as ColorScheme,
+        label: t('inspector.render.colorSchemes.charge'),
+        disabled: !hasCharges.value,
+        hint: t('inspector.render.capability.charge'),
+    },
+    {
+        value: 'secondary' as ColorScheme,
+        label: t('inspector.render.colorSchemes.secondary'),
+        disabled: !hasSecondaryStructure.value,
+        hint: t('inspector.render.capability.secondary'),
+    },
 ]));
 
 const displayMode = computed({

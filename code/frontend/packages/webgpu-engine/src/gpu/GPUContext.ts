@@ -14,6 +14,8 @@
  * @copyright CC BY-NC-SA 2026. All rights reserved.
  * */
 import type { Nullable } from "@wmv/common";
+import { Console } from "@wmv/common";
+import { t } from "../locales";
 
 
 export interface GPUContextOptions {
@@ -73,25 +75,25 @@ export class GPUContext {
                             onError
                         }: GPUContextOptions): Promise<GPUContext> {
         if (!navigator.gpu)
-            throw new Error("MsgId: 当前浏览器不支持 WebGPU");
+            throw new Error(t("GPUContext.create.error_1"));
 
         const adapter = await navigator.gpu.requestAdapter({powerPreference});
         if (!adapter)
-            throw new Error("MsgId: 无法获取 GPU 设备（可能硬件设备不支持/驱动不支持）");
+            throw new Error(t("GPUContext.create.error_2"));
 
         const device = await adapter.requestDevice();
 
         device.addEventListener("uncapturederror", e => {
             const err = (e as GPUUncapturedErrorEvent).error;
 
-            console.error("MsgId: GPU 未捕获错误: ", err);
+            Console.error(t("GPUContext.create.error_3"), err);
 
             onError?.(err);
         });
 
         device.lost.then(info => {
             if (device && info.reason !== "destroyed") {
-                console.error("MsgId: GPU 设备丢失: ", info);
+                Console.error(t("GPUContext.create.error_4"), info);
 
                 onDeviceLost?.(info);
             }
@@ -99,7 +101,7 @@ export class GPUContext {
 
         const context = canvas.getContext("webgpu") as GPUCanvasContext;
         if (!context)
-            throw new Error("MsgId: 无法获取 WebGPU 上下文");
+            throw new Error(t("GPUContext.create.error_5"));
 
         const format = navigator.gpu.getPreferredCanvasFormat();
         context.configure({
@@ -161,7 +163,7 @@ export class GPUContext {
         this.assertAlive();
 
         if (!this.depthTexture)
-            throw new Error("MsgId: 深度纹理尚未创建");
+            throw new Error(t("GPUContext.getDepthView.error_1"));
 
         return this.depthTexture.createView();
     }
@@ -226,9 +228,8 @@ export class GPUContext {
             if (!this.#sizeWarned) {
                 this.#sizeWarned = true;
 
-                console.warn(
-                    `MsgId: canvas 物理尺寸 ${w}x${h} 超过设备上限 ${limit}，已夹住。` +
-                    "请检查 canvas 的 CSS 尺寸是否依赖自身 width/height 属性（会形成自我放大的反馈）。"
+                Console.warning(
+                    t("GPUContext.syncSize.warning_1", { w, h, limit })
                 );
             }
 
@@ -276,7 +277,7 @@ export class GPUContext {
 
     private assertAlive(): void {
         if (this.#disposed)
-            throw new Error("MsgId: 已经销毁，无法获取附着纹理");
+            throw new Error(t("GPUContext.assertAlive.error_1"));
     }
 
 }

@@ -13,6 +13,7 @@
  * @desc
  * @copyright CC BY-NC-SA 2026. All rights reserved.
  * */
+export * from "./exceptions";
 export * from "./locales";
 export * from "./types";
 export * from "./exceptions";

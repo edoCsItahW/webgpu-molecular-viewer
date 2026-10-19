@@ -13,7 +13,8 @@
  * @desc 几何体基类：持有顶点数据、顶点布局与 GPU 缓冲生命周期
  * @copyright CC BY-NC-SA 2026. All rights reserved.
  * */
-import type { Nullable } from "@wmv/common";
+import { Console, type Nullable } from "@wmv/common";
+import { t } from "../locales";
 import type { ResourceManager } from "../gpu/ResourceManager";
 
 
@@ -172,7 +173,10 @@ export abstract class Geometry {
 
         if (this.normals.length !== this.positions.length)
             throw new Error(
-                `MsgId: positions 与 normals 数量不匹配: ${this.positions.length} vs ${this.normals.length}`
+                t("Geometry.constructor.error_1", {
+                    positionsLength: this.positions.length,
+                    normalsLength: this.normals.length
+                })
             );
 
         this.vertexCount = this.positions.length / 3;
@@ -270,7 +274,7 @@ export abstract class Geometry {
 
     private assertAlive(): void {
         if (this.#disposed)
-            throw new Error("MsgId: 几何体已经销毁，无法上传");
+            throw new Error(t("Geometry.assertAlive.error_1"));
     }
 
 }

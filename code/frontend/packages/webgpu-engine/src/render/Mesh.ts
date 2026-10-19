@@ -17,19 +17,24 @@ import type {Geometry} from "./Geometry";
 import {Material} from "./Material";
 import type {Renderable} from "./Scene";
 import type {ResourceManager} from "../gpu/ResourceManager";
-import type {Nullable} from "@wmv/common";
+import { Console, type Nullable } from "@wmv/common";
+import { t } from "../locales";
 import {mat4TRS} from "@wmv/mathematical";
 
 
 /**
  * 对象级 uniform 的 float 数量。
  * 必须与 WGSL 侧 ObjectUniforms 一致：
- *   model : mat4x4<f32> (0 ~ 15)
- *   color : vec3<f32> + 1 pad (16 ~ 19)
+ *   model    : mat4x4<f32> (0 ~ 15)
+ *   color    : vec3<f32>   (16 ~ 18)
+ *   objectId : u32         (19)
  */
 export const OBJECT_UNIFORM_FLOATS = 20;
 
 export const OBJECT_UNIFORM_BYTES = OBJECT_UNIFORM_FLOATS * 4;
+
+/** objectId 所在的槽位下标（WGSL 侧是 u32，必须用 Uint32Array 视图写，不能用 Float32Array） */
+export const OBJECT_UNIFORM_ID_SLOT = 19;
 
 
 export type Vec3 = [number, number, number];
@@ -54,14 +59,14 @@ export interface MeshOptions {
     /** 调试用名字 */
     name?: string;
 
-    /**
-     * 拾取 ID（u32）。0 保留给背景，真实对象应从 1 开始分配。
-     * PickingPass 会把它写进 r32uint 纹理并回读；不传时默认为 0（不参与拾取）。
-     */
-    objectId?: number;
-
     /** 是否可见，默认 true */
     visible?: boolean;
+
+    /**
+     * 拾取 ID，默认 0（= 没有 ID）。
+     * ID 的含义由上层定义（分子层用「原子索引 + 1」），引擎只负责原样渲染与读回。
+     */
+    objectId?: number;
 
     /**
      * 可选的 ResourceManager。
@@ -76,11 +81,12 @@ export interface MeshOptions {
  * geometry 是必填项，无法整体 `{...DEFAULT, ...options}` 合并，
  * 故这里只作为默认值的唯一来源，由构造器逐项 `??` 取用。
  */
-const DEFAULT_MESH_OPTIONS: Required<Pick<MeshOptions, "position" | "rotation" | "scale" | "visible">> = {
+const DEFAULT_MESH_OPTIONS: Required<Pick<MeshOptions, "position" | "rotation" | "scale" | "visible" | "objectId">> = {
     position: [0, 0, 0],
     rotation: [0, 0, 0],
     scale: 1,
-    visible: true
+    visible: true,
+    objectId: 0
 };
 
 
@@ -91,18 +97,19 @@ export class Mesh implements Renderable {
     /** 是否可见。pass 遍历时可跳过 visible = false 的对象 */
     visible: boolean;
 
+    /**
+     * 拾取 ID。0 表示"没有 ID"（与 pick 纹理的 clearValue 一致）。
+     *
+     * 引擎**不解释**这个数字的含义 —— ID 空间归上层所有（分子层用「原子索引 + 1」）。
+     * 拾取 pass 把它渲染进 r32uint 纹理，点击时读回那一个像素，再由上层反解成原子/键。
+     */
+    objectId: number;
+
     /** 几何体。顶点/索引缓冲与它强绑定，换几何体等于新建 Mesh */
     readonly geometry: Geometry;
 
     /** 材质。可以整体替换（例如在"纯色"与"按元素着色"之间切换） */
     material: Material;
-
-    /**
-     * 拾取 ID（u32）。
-     * 0 保留给背景，真实对象从 1 开始。PickingPass 把它写进 ObjectUniforms 的最后一个槽位，
-     * shader 侧 `objectId: u32` 读取后输出到 r32uint 纹理。
-     */
-    objectId: number;
 
     /**
      * 对象级 uniform buffer。
@@ -126,6 +133,12 @@ export class Mesh implements Renderable {
     /** uniform 打包缓存，复用同一块内存，避免每帧产生 GC 压力 */
     #uniformData: Float32Array;
 
+    /**
+     * #uniformData 的 u32 视图，用于写 objectId 槽。
+     * WGSL 侧该槽声明为 u32，用 Float32Array 写会把 1 写成 1065353216（bit pattern 不同）。
+     */
+    #uniformU32: Uint32Array;
+
     #disposed = false;
 
     /** 创建 uniform buffer 的 ResourceManager，dispose 时用它释放 */
@@ -135,14 +148,15 @@ export class Mesh implements Renderable {
         this.geometry = options.geometry;
         this.material = options.material ?? new Material();
         this.name = options.name;
-        this.objectId = options.objectId ?? 0;
         this.visible = options.visible ?? DEFAULT_MESH_OPTIONS.visible;
+        this.objectId = options.objectId ?? DEFAULT_MESH_OPTIONS.objectId;
 
         this.position = copyVec3(options.position ?? DEFAULT_MESH_OPTIONS.position);
         this.rotation = copyVec3(options.rotation ?? DEFAULT_MESH_OPTIONS.rotation);
         this.#scale = normalizeScale(options.scale ?? DEFAULT_MESH_OPTIONS.scale);
 
         this.#uniformData = new Float32Array(OBJECT_UNIFORM_FLOATS);
+        this.#uniformU32 = new Uint32Array(this.#uniformData.buffer);
         this.rm = options.rm ?? null;
 
         this.uniformBuffer = this.rm
@@ -251,14 +265,10 @@ export class Mesh implements Renderable {
     /**
      * 打包对象级 uniform。
      *
-     * 布局（与 WGSL ObjectUniforms 一致）：
-     *   0  ~ 15 : model        (mat4x4<f32>)
-     *   16 ~ 18 : color.rgb    (vec3<f32>)
-     *   19      : objectId     (u32，PickingPass 用；PBR 忽略)
-     *
-     * objectId 必须按 u32 的位模式写入：Float32Array[19] = 0.0 的位模式恰好是 u32 0，
-     * 但若直接写 `d[19] = objectId` 会被当作浮点 reinterpret，非零 id 会错位。
-     * 故用同一块 ArrayBuffer 的 Uint32Array 视图写入第 19 个元素。
+     * 布局：
+     *   0  ~ 15 : model
+     *   16 ~ 18 : color.rgb
+     *   19      : objectId（u32，拾取用；PBR 忽略它的值）
      *
      * 返回的是内部复用数组，每帧覆盖。调用方（Renderer）拿到后应立即 writeBuffer，
      * 不要长期持有。
@@ -275,8 +285,8 @@ export class Mesh implements Renderable {
         d[17] = c[1];
         d[18] = c[2];
 
-        // objectId 是 u32，用同缓冲区的 Uint32 视图写入，避免浮点 reinterpret 错位
-        new Uint32Array(d.buffer)[19] = this.objectId >>> 0;
+        // 必须走 u32 视图：该槽在 WGSL 侧是 u32（写入非 0 值时用 Float32Array 会写错 bit pattern）
+        this.#uniformU32[OBJECT_UNIFORM_ID_SLOT] = this.objectId >>> 0;
 
         return d;
     }
@@ -304,7 +314,7 @@ export class Mesh implements Renderable {
 
     private assertAlive(): void {
         if (this.#disposed)
-            throw new Error("MsgId: Mesh 已经销毁");
+            throw new Error(t("Mesh.assertAlive.error_1"));
     }
 }
 

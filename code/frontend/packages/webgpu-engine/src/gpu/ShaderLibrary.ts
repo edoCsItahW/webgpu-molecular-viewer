@@ -14,7 +14,8 @@
  * @copyright CC BY-NC-SA 2026. All rights reserved.
  * */
 import type { GPUContext } from "./GPUContext";
-import type { Optional } from "@wmv/common";
+import { Console, type Optional } from "@wmv/common";
+import { t } from "../locales";
 
 
 export interface ShaderCompileOptions {
@@ -158,7 +159,7 @@ export class ShaderLibrary {
         const source = this.sources.get(name);
 
         if (!source)
-            throw new Error(`MsgId: 未注册的shader: ${name}`);
+            throw new Error(t("ShaderLibrary.preprocess.error_1", { name }));
 
         const stack: ExpandFrame[] = [{ name, line: 0 }];
 
@@ -172,7 +173,7 @@ export class ShaderLibrary {
         const hit = this.cache.get(cacheKey);
 
         if (!hit)
-            throw new Error(`MsgId: 编译缓存异常: ${cacheKey}`);
+            throw new Error(t("ShaderLibrary.compileAndGet.error_1", { cacheKey }));
 
         return hit;
     }
@@ -194,13 +195,13 @@ export class ShaderLibrary {
         if (stack.length > 16) {
             const chain = stack.map(f => f.name).join(' -> ');
 
-            throw new Error(`MsgId: #include 嵌套过深: ${chain}`);
+            throw new Error(t("ShaderLibrary.expand.error_1", { chain }));
         }
 
         if (stack.some(f => f.name === name && f !== stack[stack.length - 1])) {
             const chain = [...stack.map(f => f.name), name].join(' -> ');
 
-            throw new Error(`MsgId: #include 循环引用: ${chain}`);
+            throw new Error(t("ShaderLibrary.expand.error_2", { chain }));
         }
 
         const source = this.sources.get(name);
@@ -208,7 +209,7 @@ export class ShaderLibrary {
         if (!source) {
             const from = stack[stack.length - 1];
 
-            throw new Error(`MsgId: "${from.name}:${from.line}" 引用了未注册的shader: "${name}"`);
+            throw new Error(t("ShaderLibrary.expand.error_3", { fromName: from.name, fromLine: from.line, name }));
         }
 
         const lines = source.split(/\r?\n/);
@@ -262,7 +263,7 @@ export class ShaderLibrary {
 
             if (trimmed === '#else') {
                 if (condStack.length === 0)
-                    throw new Error(`MsgId: ${name}:${i + 1} 多余的 #else`);
+                    throw new Error(t("ShaderLibrary.expand.error_4", { name, line: i + 1 }));
 
                 const outerEnabled = condStack.slice(0, -1).every(Boolean);
 
@@ -273,7 +274,7 @@ export class ShaderLibrary {
 
             if (trimmed === '#endif') {
                 if (condStack.length === 0)
-                    throw new Error(`MsgId: ${name}:${i + 1} 多余的 #endif`);
+                    throw new Error(t("ShaderLibrary.expand.error_5", { name, line: i + 1 }));
 
                 condStack.pop();
 
@@ -286,7 +287,7 @@ export class ShaderLibrary {
         }
 
         if (condStack.length !== 0)
-            throw new Error(`MsgId: ${name} 存在未闭合的 #ifdef / #ifndef`);
+            throw new Error(t("ShaderLibrary.expand.error_6", { name }));
 
         return out.join('\n');
     }
@@ -321,17 +322,17 @@ export class ShaderLibrary {
     private logCompilationInfo(name: string, module: GPUShaderModule): void {
         module.getCompilationInfo().then(info => {
             for (const msg of info.messages) {
-                const text = `MsgId: [${name}] ${msg.type} @ ${msg.lineNum}:${msg.linePos} — ${msg.message}`;
+                const params = { name, type: msg.type, lineNum: msg.lineNum, linePos: msg.linePos, message: msg.message };
 
-                if (msg.type === "error") console.error(text);
-                else if (msg.type === "warning") console.warn(text);
-                else console.info(text);
+                if (msg.type === "error") Console.error(t("ShaderLibrary.logCompilationInfo.error_1", params));
+                else if (msg.type === "warning") Console.warning(t("ShaderLibrary.logCompilationInfo.warning_1", params));
+                else Console.info(t("ShaderLibrary.logCompilationInfo.info_1", params));
             }
         });
     }
 
     private assertAlive(): void {
         if (this.#disposed)
-            throw new Error("MsgId: 已销毁");
+            throw new Error(t("ShaderLibrary.assertAlive.error_1"));
     }
 }

@@ -17,7 +17,8 @@ import type { Pass, PassContext } from "../../gpu/PassManager";
 import { ATTRIB_NORMAL, ATTRIB_POSITION, INTERLEAVED_BYTES_PER_VERTEX, type Geometry } from "../Geometry";
 import type { Renderable, Scene } from "../Scene";
 import type { Renderer } from "../Renderer";
-import type { Nullable } from "@wmv/common";
+import { Console, type Nullable } from "@wmv/common";
+import { t } from "../../locales";
 
 
 /**
@@ -161,7 +162,7 @@ export class PBRPass implements Pass {
         // ---- scene bindgroup ----
         const sceneUniformBuffer = renderer.scene?.sceneUniformBuffer;
         if (!sceneUniformBuffer)
-            throw new Error("MsgId: PBRPass 构造时 Scene 尚未 attachGpu 或 sceneUniformBuffer 未创建");
+            throw new Error(t("PBRPass.constructor.error_1"));
 
         this.sceneBindGroup = renderer.bg.getOrCreate(
             sceneBGL,
