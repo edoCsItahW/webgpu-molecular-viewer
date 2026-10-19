@@ -17,7 +17,8 @@ import type { Camera } from "./Camera";
 import { Light, DirectionalLight, isAmbientLight, isDirectionalLight, isHemisphereLight } from "./Light";
 import type { GPUContext } from "../gpu/GPUContext";
 import type { ResourceManager } from "../gpu/ResourceManager";
-import type { Nullable } from "@wmv/common";
+import { Console, type Nullable } from "@wmv/common";
+import { t } from "../locales";
 
 
 /**
@@ -202,7 +203,9 @@ export class Scene {
             if (obj == null) continue;
 
             if (this.#objects.includes(obj))
-                throw new Error(`MsgId: 对象已存在于场景中: ${obj.name ?? "<未命名>"}`);
+                throw new Error(
+                    t("Scene.add.error_1", { name: obj.name ?? "<未命名>" })
+                );
 
             this.#objects.push(obj);
 
@@ -410,7 +413,7 @@ export class Scene {
 
     private assertAlive(): void {
         if (this.#disposed)
-            throw new Error("MsgId: Scene 已经销毁");
+            throw new Error(t("Scene.assertAlive.error_1"));
     }
 }
 

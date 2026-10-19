@@ -139,6 +139,11 @@ export default {
                 wireframe: "Wireframe",
                 cartoon: "Cartoon"
             },
+            capability: {
+                cartoon: "This structure has no secondary-structure data, so cartoon mode is unavailable",
+                charge: "This structure has no charge data, so charge coloring is unavailable",
+                secondary: "This structure has no secondary-structure data, so SS coloring is unavailable"
+            },
             colorScheme: "Color scheme",
             colorSchemes: {
                 element: "Element CPK",

@@ -15,6 +15,7 @@
  * */
 import type { Nullable } from "@wmv/common";
 import type { ResourceManager } from "../gpu/ResourceManager";
+import { t } from "../locales";
 
 
 /** 可缺省项的默认值 */
@@ -99,10 +100,10 @@ export class StorageBuffer {
         const {itemCount, stride} = options;
 
         if (itemCount < 0)
-            throw new Error(`MsgId: storage buffer 的 itemCount 必须 >= 0，实际为 ${itemCount}`);
+            throw new Error(t("StorageBuffer.constructor.error_1", { itemCount }));
 
         if (stride <= 0 || stride % 4 !== 0)
-            throw new Error(`MsgId: storage buffer 的 stride 必须是正的 4 的倍数，实际为 ${stride}`);
+            throw new Error(t("StorageBuffer.constructor.error_2", { stride }));
 
         const extraUsage = options.extraUsage ?? DEFAULT_STORAGE_BUFFER_OPTIONS.extraUsage;
         const label = options.label ?? DEFAULT_STORAGE_BUFFER_OPTIONS.label;
@@ -155,7 +156,10 @@ export class StorageBuffer {
 
         if (data.byteLength > this.byteLength)
             throw new Error(
-                `MsgId: 上传数据过大：${data.byteLength} > ${this.byteLength}`
+                t("StorageBuffer.upload.error_1", {
+                    dataByteLength: data.byteLength,
+                    byteLength: this.byteLength
+                })
             );
 
         this.rm.writeBuffer(this.buffer, data);
@@ -169,11 +173,15 @@ export class StorageBuffer {
         this.assertAlive();
 
         if (offset % 4 !== 0)
-            throw new Error(`MsgId: offset 必须是 4 的倍数，实际为 ${offset}`);
+            throw new Error(t("StorageBuffer.uploadAt.error_1", { offset }));
 
         if (offset + data.byteLength > this.byteLength)
             throw new Error(
-                `MsgId: 局部上传越界：${offset} + ${data.byteLength} > ${this.byteLength}`
+                t("StorageBuffer.uploadAt.error_2", {
+                    offset,
+                    dataByteLength: data.byteLength,
+                    byteLength: this.byteLength
+                })
             );
 
         this.rm.writeBuffer(this.buffer, data, offset);
@@ -186,12 +194,18 @@ export class StorageBuffer {
     uploadElement(index: number, data: ArrayBufferView): void {
         if (index < 0 || index >= this.itemCount)
             throw new Error(
-                `MsgId: 元素索引越界：${index} 不在 [0, ${this.itemCount})`
+                t("StorageBuffer.uploadElement.error_1", {
+                    index,
+                    itemCount: this.itemCount
+                })
             );
 
         if (data.byteLength !== this.stride)
             throw new Error(
-                `MsgId: 元素大小不匹配：${data.byteLength} vs stride ${this.stride}`
+                t("StorageBuffer.uploadElement.error_2", {
+                    dataByteLength: data.byteLength,
+                    stride: this.stride
+                })
             );
 
         this.uploadAt(data, index * this.stride);
@@ -210,7 +224,7 @@ export class StorageBuffer {
         this.assertAlive();
 
         if (this.#reading)
-            throw new Error("MsgId: 上一次 readback 尚未完成，请 await 后再调用");
+            throw new Error(t("StorageBuffer.readback.error_1"));
 
         // copyBufferToBuffer 不允许 size = 0，空缓冲直接返回空数据
         if (this.byteLength === 0)
@@ -275,7 +289,7 @@ export class StorageBuffer {
 
     private assertAlive(): void {
         if (this.#disposed)
-            throw new Error(`MsgId: storage buffer "${this.label}" 已经销毁`);
+            throw new Error(t("StorageBuffer.assertAlive.error_1", { label: this.label }));
     }
 
 }
