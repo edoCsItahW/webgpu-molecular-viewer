@@ -1,0 +1,52 @@
+{
+  "points": [
+    {
+      "api": "webgpu",
+      "overdraw": 1,
+      "frames": 20,
+      "gpuMs": 0.024
+    },
+    {
+      "api": "webgpu",
+      "overdraw": 8,
+      "frames": 20,
+      "gpuMs": 0.095
+    },
+    {
+      "api": "webgpu",
+      "overdraw": 32,
+      "frames": 20,
+      "gpuMs": 0.661
+    },
+    {
+      "api": "webgpu",
+      "overdraw": 128,
+      "frames": 20,
+      "gpuMs": 3.361
+    },
+    {
+      "api": "webgl2",
+      "overdraw": 1,
+      "frames": 20,
+      "gpuMs": 0.072
+    },
+    {
+      "api": "webgl2",
+      "overdraw": 8,
+      "frames": 20,
+      "gpuMs": 0.102
+    },
+    {
+      "api": "webgl2",
+      "overdraw": 32,
+      "frames": 20,
+      "gpuMs": 0.601
+    },
+    {
+      "api": "webgl2",
+      "overdraw": 128,
+      "frames": 20,
+      "gpuMs": 2.974
+    }
+  ]
+}

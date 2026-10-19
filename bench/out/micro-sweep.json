@@ -1,0 +1,148 @@
+{
+  "points": [
+    {
+      "api": "webgpu",
+      "draws": 2,
+      "frames": 120,
+      "cpuMs": 0.014,
+      "gpuMs": 0.031,
+      "totalMs": 222.1,
+      "perFrameMs": 1.851,
+      "timestamp": true
+    },
+    {
+      "api": "webgpu",
+      "draws": 1000,
+      "frames": 120,
+      "cpuMs": 0.055,
+      "gpuMs": 0.302,
+      "totalMs": 43.4,
+      "perFrameMs": 0.362,
+      "timestamp": true
+    },
+    {
+      "api": "webgpu",
+      "draws": 5000,
+      "frames": 80,
+      "cpuMs": 0.141,
+      "gpuMs": 1.166,
+      "totalMs": 98.5,
+      "perFrameMs": 1.231,
+      "timestamp": true
+    },
+    {
+      "api": "webgpu",
+      "draws": 10000,
+      "frames": 60,
+      "cpuMs": 0.322,
+      "gpuMs": 2.121,
+      "totalMs": 134.9,
+      "perFrameMs": 2.248,
+      "timestamp": true
+    },
+    {
+      "api": "webgpu",
+      "draws": 20000,
+      "frames": 40,
+      "cpuMs": 0.827,
+      "gpuMs": 4.309,
+      "totalMs": 178.6,
+      "perFrameMs": 4.465,
+      "timestamp": true
+    },
+    {
+      "api": "webgpu",
+      "draws": 50000,
+      "frames": 20,
+      "cpuMs": 2.43,
+      "gpuMs": 10.899,
+      "totalMs": 227.7,
+      "perFrameMs": 11.385,
+      "timestamp": true
+    },
+    {
+      "api": "webgl2",
+      "draws": 2,
+      "frames": 120,
+      "cpuMs": 0.009,
+      "gpuMs": 0.099,
+      "totalMs": 23.7,
+      "perFrameMs": 0.197,
+      "timerQuery": true
+    },
+    {
+      "api": "webgl2",
+      "draws": 1000,
+      "frames": 120,
+      "cpuMs": 0.551,
+      "gpuMs": 0.665,
+      "totalMs": 107.3,
+      "perFrameMs": 0.894,
+      "timerQuery": true
+    },
+    {
+      "api": "webgl2",
+      "draws": 5000,
+      "frames": 80,
+      "cpuMs": 0.377,
+      "gpuMs": 3.75,
+      "totalMs": 303.8,
+      "perFrameMs": 3.797,
+      "timerQuery": true
+    },
+    {
+      "api": "webgl2",
+      "draws": 10000,
+      "frames": 60,
+      "cpuMs": 2.928,
+      "gpuMs": 6.755,
+      "totalMs": 414.6,
+      "perFrameMs": 6.91,
+      "timerQuery": true
+    },
+    {
+      "api": "webgl2",
+      "draws": 20000,
+      "frames": 40,
+      "cpuMs": 4.563,
+      "gpuMs": 11.674,
+      "totalMs": 478.1,
+      "perFrameMs": 11.953,
+      "timerQuery": true
+    },
+    {
+      "api": "webgl2",
+      "draws": 50000,
+      "frames": 20,
+      "cpuMs": 14.77,
+      "gpuMs": 30.272,
+      "totalMs": 617.4,
+      "perFrameMs": 30.87,
+      "timerQuery": true
+    }
+  ],
+  "webgpuInfo": {
+    "api": "webgpu",
+    "mode": "instanced",
+    "atoms": 4779,
+    "bonds": 4576,
+    "adapter": {
+      "vendor": "nvidia"
+    },
+    "canvas": {
+      "w": 1002,
+      "h": 928
+    }
+  },
+  "webgl2Info": {
+    "api": "webgl2",
+    "mode": "instanced",
+    "atoms": 4779,
+    "bonds": 4576,
+    "adapter": null,
+    "canvas": {
+      "w": 1002,
+      "h": 928
+    }
+  }
+}

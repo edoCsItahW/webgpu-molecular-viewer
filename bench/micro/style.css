@@ -1,0 +1,6 @@
+:root { color-scheme: dark; }
+html, body { margin: 0; padding: 0; background: #0e1116; overflow: hidden; }
+#stage { position: relative; width: 1002px; height: 928px; }
+#gpu, #gl { position: absolute; inset: 0; width: 1002px; height: 928px; display: block; }
+#gl { display: none; }
+#hud { position: absolute; left: 8px; top: 8px; font: 12px/1.4 monospace; color: #9fb0c0; pointer-events: none; }
