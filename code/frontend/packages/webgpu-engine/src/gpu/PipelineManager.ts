@@ -14,6 +14,8 @@
  * @copyright CC BY-NC-SA 2026. All rights reserved.
  * */
 import type {GPUContext} from "./GPUContext";
+import { Console } from "@wmv/common";
+import { t } from "../locales";
 
 
 export interface PipelineManagerOptions {
@@ -97,7 +99,7 @@ export class PipelineManager {
         this.#stats.bindGroupLayouts.set(key, layout);
         this.meta.set(`bgl:${key}`, {key, createdAt: performance.now()});
 
-        if (this.opts.verbose) console.log(`MsgId: 创建BindGroupLayout: ${key}`);
+        if (this.opts.verbose) Console.info(t("PipelineManager.getBindGroupLayouts.info_1", { key }));
         return layout;
     }
 
@@ -115,7 +117,7 @@ export class PipelineManager {
         this.#stats.pipelineLayouts.set(key, layout);
         this.meta.set(`pl:${key}`, {key, createdAt: performance.now()});
 
-        if (this.opts.verbose) console.log(`MsgId: 创建PipelineLayout: ${key}`);
+        if (this.opts.verbose) Console.info(t("PipelineManager.getPipelineLayout.info_1", { key }));
         return layout;
     }
 
@@ -135,7 +137,7 @@ export class PipelineManager {
         this.meta.set(`rp:${key}`, {key, createdAt: performance.now()});
 
         if (this.opts.verbose)
-            console.log(`MsgId: 创建PipelineLayout: ${key} (${(performance.now() - t0).toFixed(2)}ms)`);
+            Console.info(t("PipelineManager.getRenderPipeline.info_1", { key, duration: (performance.now() - t0).toFixed(2) }));
 
         return pipeline;
     }
@@ -158,7 +160,7 @@ export class PipelineManager {
                 this.pendingRender.delete(key);
                 this.meta.set(`rp:${key}`, {key, createdAt: performance.now()});
                 if (this.opts.verbose)
-                    console.log(`MsgId: 异步创建RenderPipeline: ${key}`);
+                    Console.info(t("PipelineManager.getRenderPipelineAsync.info_1", { key }));
 
                 return pipeline;
             }).catch(err => {
@@ -185,7 +187,7 @@ export class PipelineManager {
         this.meta.set(`cp:${key}`, {key, createdAt: performance.now()});
 
         if (this.opts.verbose)
-            console.log(`MsgId: 创建ComputePipeline: ${key} (${(performance.now() - t0).toFixed(2)}ms)`);
+            Console.info(t("PipelineManager.getComputePipeline.info_1", { key, duration: (performance.now() - t0).toFixed(2) }));
 
         return pipeline;
     }
@@ -207,7 +209,7 @@ export class PipelineManager {
                 this.pendingCompute.delete(key);
                 this.meta.set(`cp:${key}`, {key, createdAt: performance.now()});
                 if (this.opts.verbose)
-                    console.log(`MsgId: 异步创建ComputePipeline: ${key}`);
+                    Console.info(t("PipelineManager.getComputePipelineAsync.info_1", { key }));
 
                 return pipeline;
             }).catch(err => {
@@ -251,10 +253,10 @@ export class PipelineManager {
         if (this.#disposed) return;
 
         if (this.opts.verbose && this.meta.size > 0) {
-            console.log(`MsgId: dispose，共释放 ${this.meta.size} 条缓存：`);
+            Console.info(t("PipelineManager.dispose.info_1", { size: this.meta.size }));
 
             for (const meta of this.meta.values())
-                console.log(`  - ${meta.key}`);
+                Console.info(t("PipelineManager.dispose.info_2", { key: meta.key }));
         }
 
         this.clear();
@@ -297,6 +299,6 @@ export class PipelineManager {
 
     private assertAlive(): void {
         if (this.#disposed)
-            throw new Error("MsgId: 已经销毁，无法继续创建管线");
+            throw new Error(t("PipelineManager.assertAlive.error_1"));
     }
 }

@@ -14,6 +14,8 @@
  * @copyright CC BY-NC-SA 2026. All rights reserved.
  * */
 import {GPUContext} from "./GPUContext";
+import { Console } from "@wmv/common";
+import { t } from "../locales";
 
 
 type GPUResource = GPUBuffer | GPUTexture | GPUSampler;
@@ -223,10 +225,10 @@ export class ResourceManager {
         if (this.#disposed) return;
 
         if (this.opts.warnOnLeak && this.entries.size > 0) {
-            console.warn(`MsgId: 资源泄漏，未销毁的资源数量：${this.entries.size}`);
+            Console.warning(t("ResourceManager.disposeAll.warning_1", { size: this.entries.size }));
 
             for (const entry of this.entries.values())
-                console.warn(`MsgId: 未销毁的资源 ${entry.label}`);
+                Console.warning(t("ResourceManager.disposeAll.warning_2", { label: entry.label }));
         }
 
         for (const entry of this.entries.values())
@@ -242,7 +244,7 @@ export class ResourceManager {
 
         if (!entry) {
             if (this.opts.warnOnLeak)
-                console.warn(`MsgId: 尝试销毁未跟踪的资源 ${resource}`);
+                Console.warning(t("ResourceManager.destroy.warning_1", { resource: String(resource) }));
 
             this.destroyObject(resource);
             return;
@@ -292,7 +294,7 @@ export class ResourceManager {
 
     private assertAlive(): void {
         if (this.#disposed)
-            throw new Error("MsgId: 已经销毁，无法创建资源");
+            throw new Error(t("ResourceManager.assertAlive.error_1"));
     }
 
     private static endsWithBuffer(type: ResourceKind): type is BufferKind {

@@ -41,4 +41,5 @@ export type { MaterialOptions } from "./render/Material";
 export { Light, DirectionalLight, AmbientLight, HemisphereLight } from "./render/Light";
 export type { LightBase } from "./render/Light";
 export { SphereGeometry } from "./render/geometry/SphereGeometry";
+export { CylinderGeometry } from "./render/geometry/CylinderGeometry";
 export type { FrameStats } from "./render/FrameStats";

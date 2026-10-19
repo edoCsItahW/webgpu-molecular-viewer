@@ -14,7 +14,8 @@
  * @copyright CC BY-NC-SA 2026. All rights reserved.
  * */
 import type {GPUContext} from "./GPUContext";
-import type {Nullable, Optional} from "@wmv/common";
+import { Console, type Nullable, type Optional } from "@wmv/common";
+import { t } from "../locales";
 
 
 /** 中间纹理描述符。size 省略时表示跟随帧尺寸（canvas 物理像素） */
@@ -112,6 +113,17 @@ export interface Pass {
     execute(ctx: PassContext): void;
 
     /**
+     * 本帧命令缓冲**提交之后**调用（可选）。
+     *
+     * 用途：需要回读的 pass（如 picking）必须在这里发起 `mapAsync`，
+     * 不能在自己的 `execute` 里发起 —— `execute` 只是录制命令，
+     * 真正写这个 buffer 的拷贝要到 PassManager 提交时才执行；
+     * 而 WebGPU 规定"有 pending map 或已 mapped 的 buffer 不能被 submit 写入"，
+     * 在 execute 里 mapAsync 会让整个命令缓冲校验失败（拷贝被丢弃，回读恒为 0）。
+     */
+    afterSubmit?(): void;
+
+    /**
      * 是否启用。
      * 可以是布尔值，也可以是每帧求值的函数（用于动态开关 SSAO 等）。
      */
@@ -168,7 +180,7 @@ export class PassManager {
         this.assertAlive();
 
         if (this.passByName.has(pass.name))
-            throw new Error(`MsgId: pass名字重复: ${pass.name}`);
+            throw new Error(t("PassManager.add.error_1", { name: pass.name }));
 
         this.passes.push(pass);
         this.passByName.set(pass.name, pass);
@@ -254,6 +266,9 @@ export class PassManager {
 
         const encoder = this.gpu.device.createCommandEncoder({label: `frame:${this.frameIndex}`});
 
+        /** 本帧真正执行过的 pass（提交后要回调它们的 afterSubmit） */
+        const executed: Pass[] = [];
+
         for (const pass of sorted) {
             const enabled = typeof pass.enabled === "function" ? pass.enabled(frameCtx) : pass.enabled !== false;
             if (!enabled) continue;
@@ -263,18 +278,25 @@ export class PassManager {
             const ctx = this.createPassContext(encoder, frameCtx, pass);
             try {
                 pass.execute(ctx);
+                executed.push(pass);
             } catch (err) {
-                console.error(`MsgId: pass执行错误: ${pass.name}`, err);
+                Console.error(t("PassManager.execute.error_1", { name: pass.name }), err);
                 throw err;
             }
 
             if (this.opts.profilePasses)
-                console.log(`MsgId: pass ${pass.name} 执行耗时: ${(performance.now() - t0).toFixed(2)}ms`);
+                Console.info(t("PassManager.execute.info_1", { name: pass.name, time: (performance.now() - t0).toFixed(2) }));
         }
 
         // 一帧只提交一次：pass 之间可能通过 compute/render 交错依赖，
         // 统一提交才能保证 GPU 端时序（见 PassManager.md 九.9）
         this.gpu.device.queue.submit([encoder.finish()]);
+
+        // 提交之后才允许发起回读：mapped / pending map 的 buffer 不允许被 submit 写入，
+        // 所以在 execute 里 mapAsync 会让本帧命令缓冲校验失败（见 Pass.afterSubmit 的说明）
+        for (const pass of executed)
+            pass.afterSubmit?.();
+
         this.frameIndex++;
     }
 
@@ -282,7 +304,7 @@ export class PassManager {
         if (this.#disposed) return;
 
         if (this.opts.warnOnLeak && this.textures.size > 0)
-            console.warn(`MsgId: dispose，释放 ${this.textures.size} 张中间纹理`);
+            Console.warning(t("PassManager.dispose.warning_1", { size: this.textures.size }));
 
         for (const tex of this.textures.values())
             tex.destroy();
@@ -309,7 +331,7 @@ export class PassManager {
             const after = pass.after ?? [];
             for (const dep of after) {
                 if (!this.passByName.has(dep))
-                    throw new Error(`MsgId: pass "${pass.name}" 依赖了不存在的 pass "${dep}"`);
+                    throw new Error(t("PassManager.getSortedPasses.error_1", { name: pass.name, dep }));
 
                 indegree.set(pass.name, (indegree.get(pass.name) ?? 0) + 1);
 
@@ -342,7 +364,7 @@ export class PassManager {
         if (sorted.length !== this.passes.length) {
             const cycle = this.passes.filter(p => !sorted.includes(p)).map(p => p.name).join(', ');
 
-            throw new Error(`MsgId: 依赖循环: ${cycle}`);
+            throw new Error(t("PassManager.getSortedPasses.error_2", { cycle }));
         }
 
         this.sortedPasses = sorted;
@@ -397,14 +419,14 @@ export class PassManager {
             getTexture(name: string): GPUTextureView {
                 const tex = self.textures.get(name);
                 if (!tex)
-                    throw new Error(`MsgId: 未找到中间纹理: ${name}`);
+                    throw new Error(t("PassManager.getTexture.error_1", { name }));
 
                 return tex.createView();
             },
             getTextureRaw(name: string): GPUTexture {
                 const tex = self.textures.get(name);
                 if (!tex)
-                    throw new Error(`MsgId: 未找到中间纹理: ${name}`);
+                    throw new Error(t("PassManager.getTextureRaw.error_1", { name }));
 
                 return tex;
             }
@@ -451,6 +473,6 @@ export class PassManager {
 
     private assertAlive(): void {
         if (this.#disposed)
-            throw new Error("MsgId: PassManager 已经销毁");
+            throw new Error(t("PassManager.assertAlive.error_1"));
     }
 }

@@ -19,6 +19,7 @@
 import { parseWithRDKit, type RDKitParseResult } from '@/composables/useRDKit';
 import { parsePDBWithPyodide } from '@/composables/usePyodide';
 import { getElementColor, getElementRadius } from '@/data/demo-molecule';
+import { normalizeBonds, perceiveBonds } from '@/utils/bond-perception';
 import type { AtomData } from '@/stores/molecule.store';
 
 /** 支持的分子文件格式 */
@@ -112,15 +113,54 @@ export async function parseMoleculeText(
         if (!pdbResult) {
             throw new Error(`Failed to parse PDB molecule`);
         }
-        const atoms = pdbResult.atoms.map((a, i) => ({
+
+        const atoms: AtomData[] = pdbResult.atoms.map((a, i) => ({
             id: i,
             symbol: a.symbol,
             position: a.position,
             color: getElementColor(a.symbol),
             radius: getElementRadius(a.symbol),
+            residue: a.residue,
+            chain: a.chain,
+            bfactor: a.bfactor,
+            occupancy: a.occupancy,
         }));
+
+        // ---- CONECT 的序列号 → 数组下标 ----
+        // CONECT 里的数字是 PDB 的原子序列号（第 7-11 列），不是数组下标；序列号本身可能有空洞
+        // （实测 3ERT 是 1..2071 但只有 2070 个原子、1AKI 是 1..1080 只有 1079 个），
+        // 而 atoms 数组来自 Biopython 的遍历顺序（还折叠了未选中的 altLoc）→ 直接 `serial - 1`
+        // 当下标必然错位，表现就是"键接在空间上毫不相干的原子上"（issues.md #38）。
+        const serialToIndex = new Map<number, number>();
+
+        pdbResult.atoms.forEach((a, i) => serialToIndex.set(a.serial, i));
+
+        const explicit: Array<[number, number]> = [];
+        let unmapped = 0;
+
+        for (const [serialA, serialB] of pdbResult.conect) {
+            const i = serialToIndex.get(serialA);
+            const j = serialToIndex.get(serialB);
+
+            if (i === undefined || j === undefined || i === j) {
+                unmapped++;
+                continue;
+            }
+
+            explicit.push([i, j]);
+        }
+
+        if (unmapped > 0)
+            console.warn(`MsgId: ${unmapped} 条 CONECT 端点无法映射到已解析的原子（序列号缺失或 altLoc 被折叠），已忽略`);
+
+        // ---- 其余键按几何推断 ----
+        // PDB **不存**聚合物连通性：规范只要求给 HETATM/配体/二硫键写 CONECT
+        // （实测 1UBQ 660 个原子 0 条 CONECT、1CRN 327 个原子只有 6 条 = 3 对二硫键）。
+        // 只读 CONECT 的话蛋白质绝大部分原子都是孤岛 —— 所以必须做共价半径的键感知。
+        const bonds = normalizeBonds(perceiveBonds(atoms, { explicit }), atoms.length);
         const name = filename.replace(/\.[^.]+$/, '') || 'molecule';
-        return { name, atoms, bonds: pdbResult.bonds };
+
+        return { name, atoms, bonds };
     }
 
     // RDKit 的 format 参数
@@ -132,7 +172,12 @@ export async function parseMoleculeText(
     }
 
     const atoms = toAtomData(result);
-    const bonds = result.bonds;
+
+    // RDKit 对"文件里没有键信息"的格式（如 XYZ）会返回空键表；这时同样按几何推断，
+    // 否则渲染出来就是一堆孤立的球。SDF/MOL 有 bond block，走显式键，不受影响。
+    const bonds = result.bonds.length > 0
+        ? normalizeBonds(result.bonds, atoms.length)
+        : normalizeBonds(perceiveBonds(atoms), atoms.length);
 
     // 从文件名提取名称（去扩展名）
     const name = filename.replace(/\.[^.]+$/, '') || 'molecule';

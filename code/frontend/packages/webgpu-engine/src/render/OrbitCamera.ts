@@ -14,6 +14,8 @@
  * @copyright CC BY-NC-SA 2026. All rights reserved.
  * */
 import { Camera, type CameraOptions } from "./Camera";
+import { Console } from "@wmv/common";
+import { t } from "../locales";
 
 
 export interface OrbitCameraOptions extends CameraOptions {
@@ -315,7 +317,7 @@ export class OrbitCamera extends Camera {
 
     private assertAlive(): void {
         if (this.#disposed)
-            throw new Error("MsgId: OrbitCamera 已经销毁");
+            throw new Error(t("OrbitCamera.assertAlive.error_1"));
     }
 }
 
