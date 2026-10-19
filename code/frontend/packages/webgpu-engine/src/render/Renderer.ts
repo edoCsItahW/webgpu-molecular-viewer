@@ -26,7 +26,8 @@ import {PickingPass} from "./passes/PickingPass";
 import {SSAOPass} from "./passes/SSAOPass";
 import type {Scene} from "./Scene";
 import type {FrameStats} from "./FrameStats";
-import type {Nullable} from "@wmv/common";
+import { Console, type Nullable } from "@wmv/common";
+import { t } from "../locales";
 
 
 export interface RendererOptions {
@@ -289,7 +290,7 @@ export class Renderer {
         this.assertAlive();
 
         if (scene) this.#scene = scene;
-        if (!this.#scene) throw new Error("MsgId: step() 时 scene 为空");
+        if (!this.#scene) throw new Error(t("Renderer.step.error_1"));
 
         this.ensurePasses(this.#scene);
 
@@ -308,12 +309,26 @@ export class Renderer {
     }
 
     /**
-     * 请求拾取某个屏幕像素（物理像素坐标，非 CSS 像素）。
-     * 由 viewport 层的点击事件调用；结果在之后的某一帧通过 onPick 回调返回。
-     * 未开启 picking 时是空操作。
+     * 请求拾取某个屏幕位置。
+     *
+     * **坐标用 CSS 像素**（DOM 事件里 `clientX/clientY` 相对 canvas 的值）；
+     * 引擎内部按 canvas 的实际缩放比（物理尺寸 / CSS 尺寸）换算为物理像素，
+     * 调用方不要自己乘 devicePixelRatio（否则会二次缩放，点击位置整片偏移）。
+     * 结果至少延迟一帧，通过 onPick 回调返回；未开启 picking 时是空操作。
      */
-    requestPick(screenX: number, screenY: number): void {
-        this.#pickingPass?.requestPick(screenX, screenY);
+    requestPick(clientX: number, clientY: number): void {
+        const picking = this.#pickingPass;
+        if (!picking) return;
+
+        const canvas = this.gpu.options.canvas;
+        const cssWidth = canvas.clientWidth;
+        const cssHeight = canvas.clientHeight;
+
+        // 用 canvas 自身比例而非 window.devicePixelRatio：canvas 可能被 CSS 缩放
+        const scaleX = cssWidth > 0 ? this.gpu.width / cssWidth : 1;
+        const scaleY = cssHeight > 0 ? this.gpu.height / cssHeight : 1;
+
+        picking.requestPick(Math.floor(clientX * scaleX), Math.floor(clientY * scaleY));
     }
 
     /**
@@ -475,7 +490,7 @@ export class Renderer {
 
         if (!scene.sceneUniformBuffer)
             throw new Error(
-                "MsgId: 渲染前必须先把 GPU 交给 Scene（new Scene({gpu, rm}) 或 scene.attachGpu(gpu, rm)）"
+                t("Renderer.ensurePasses.error_1")
             );
 
         for (const pass of this.#createdPasses)
@@ -498,9 +513,8 @@ export class Renderer {
      * 中间纹理只按名字声明，pass 按名字取用，实际的创建与尺寸重建由 PassManager 惰性完成。
      *
      * 与 passes.md §五 的两点差异（都是有意的）：
-     *   1. `scene-color` 只在开启 SSAO 时声明；`depth` 在开启 SSAO 或 Picking 时声明
-     *      —— SSAOPass 会采样 depth，PickingPass 需要一张可清的深度附着做遮挡，
-     *      两者都依赖同一张中间纹理；无条件声明会让 PassManager 每帧白建全分辨率纹理。
+     *   1. `scene-color` 与 `depth` 只在开启 SSAO 时声明 —— 它们只有 SSAOPass 会读，
+     *      无条件声明会让 PassManager 每帧白建两张全分辨率纹理。
      *   2. `depth` 的格式取 `gpu.options.depthFormat` 而不是写死 'depth24plus'，
      *      避免 GPUContext 换了深度格式后这里漂移（同 PipelineManager 的自动填充理由）。
      *
@@ -525,9 +539,9 @@ export class Renderer {
             });
         }
 
-        // depth 中间纹理被 SSAO（采样）与 Picking（作为可清深度附着）共同依赖，
-        // 任一开启都必须声明。仅 Picking 开启时 PBR 仍写交换链的 frame.depthView，
-        // 这张 depth 只供 PickingPass 自行 clear 后绘制，互不干扰。
+        // 深度纹理：SSAO 要读 PBR 写进去的深度，Picking 也需要一张深度（它把深度清成 1.0 再画一遍，
+        // 才能得到"最靠前的那个物体的 id"）。任一开启就必须声明 —— 只在 SSAO 时声明，
+        // 会让"只开 picking"的配置在首次拾取时抛「未找到中间纹理: depth」。
         if (useSsao || usePicking)
             this.passes.declareTexture("depth", {
                 format: this.gpu.options.depthFormat,
@@ -577,6 +591,6 @@ export class Renderer {
     }
 
     private assertAlive(): void {
-        if (this.#disposed) throw new Error("MsgId: 已经销毁，无法继续渲染");
+        if (this.#disposed) throw new Error(t("Renderer.assertAlive.error_1"));
     }
 }

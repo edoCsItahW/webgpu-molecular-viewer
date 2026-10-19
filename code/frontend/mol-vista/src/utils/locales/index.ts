@@ -51,6 +51,6 @@ export async function load(code: string): Promise<LocaleMessage> {
         if (fallback && fallback.code !== code)
             return load(fallback.code);
 
-        return (await import(`./languages/${getDefaultLanguage()}.json`)).default;
+        return (await import(`./languages/${getDefaultLanguage()}.ts`)).default;
     }
 }

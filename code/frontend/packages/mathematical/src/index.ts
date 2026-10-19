@@ -6,13 +6,12 @@
 // permission, please contact the author: edocsitahw@qq.com
 
 /**
- * @file index.ts
+ * @file index.d.ts
  * @author edocsitahw
  * @version 1.1
- * @date 2026/09/27 00:00
- * @desc @wmv/mathematical 包入口：数学（矩阵运算）与物理（分子动力学力场/积分器）。
+ * @date 2026/09/17 14:53
+ * @desc
  * @copyright CC BY-NC-SA 2026. All rights reserved.
  * */
-
-export * from "./math";
 export * from "./physics";
+export * from "./math";

@@ -15,7 +15,7 @@
             :key="t.name"
             :name="t.name"
             :label="t.label"
-            :active="modelExclusive === t.name"
+            :active="exclusive === t.name"
             @click="setExclusive(t.name)"
         />
         <span class="mvt-sep" aria-hidden="true" />
@@ -46,8 +46,8 @@
 import MvIconButton from '@/components/widget/MV-IconButton.vue';
 
 type IconName = 'upload' | 'fit' | 'target' | 'rotate' | 'pan' | 'pick' | 'measure' | 'grid' | 'play' | 'step' | 'reset';
-type ExclusiveTool = 'rotate' | 'pan' | 'pick' | 'measure';
-type ToggleTool = 'fit' | 'grid';
+export type ExclusiveTool = 'rotate' | 'pan' | 'pick' | 'measure';
+export type ToggleTool = 'fit' | 'grid';
 
 defineProps<{
     /** 互斥工具当前激活项（v-model:exclusive） */

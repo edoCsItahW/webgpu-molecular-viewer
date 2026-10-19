@@ -11,6 +11,10 @@
     "files": [
         "dist"
     ],
+    "scripts": {
+        "build": "tsc --build && node -e \"const fs=require('fs'),path=require('path');const src='src/render/shaders',dst='dist/render/shaders';function cp(d){fs.mkdirSync(path.join(dst,d),{recursive:true});for(const f of fs.readdirSync(path.join(src,d))){const p=path.join(src,d,f);if(fs.statSync(p).isDirectory())cp(path.join(d,f));else fs.copyFileSync(p,path.join(dst,d,f));}}cp('.');\"",
+        "clean": "tsc --build --clean"
+    },
     "dependencies": {
         "@wmv/common": "workspace:*",
         "@wmv/mathematical": "workspace:*"

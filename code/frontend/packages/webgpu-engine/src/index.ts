@@ -9,161 +9,37 @@
  * @file index.ts
  * @author edocsitahw
  * @version 1.1
- * @date 2026/09/17
- * @desc @wmv/webgpu-engine 的公共 API 入口：按层重新导出 GPU / 渲染 / 计算 三大模块的类与类型
+ * @date 2026/09/27 18:00
+ * @desc @wmv/webgpu-engine 公共 API 出口。导出渲染管线、场景、相机、几何、材质、光照等。
  * @copyright CC BY-NC-SA 2026. All rights reserved.
  * */
 
-// ============================================================================
-// GPU 基础层：上下文 / 资源 / 着色器 / 管线 / 绑定组 / Pass 调度
-// ============================================================================
-export {
-    GPUContext,
-    type GPUContextOptions
-} from "./gpu/GPUContext";
-
-export {
-    ResourceManager,
-    type ResourceManagerOptions
-} from "./gpu/ResourceManager";
-
-export {
-    ShaderLibrary,
-    type ShaderLibraryOptions
-} from "./gpu/ShaderLibrary";
-
+// ---- GPU 基础层 ----
+export { GPUContext } from "./gpu/GPUContext";
+export type { GPUContextOptions } from "./gpu/GPUContext";
+export { ResourceManager } from "./gpu/ResourceManager";
+export { ShaderLibrary } from "./gpu/ShaderLibrary";
 export { PipelineManager } from "./gpu/PipelineManager";
+export { BindGroupCache } from "./gpu/BindGroupCache";
+export { PassManager } from "./gpu/PassManager";
 
-export {
-    BindGroupCache,
-    type BindGroupCacheOptions
-} from "./gpu/BindGroupCache";
-
-export {
-    PassManager,
-    type PassManagerOptions,
-    type Pass,
-    type PassContext,
-    type FrameContext,
-    type IntermediateTextureDesc
-} from "./gpu/PassManager";
-
-// ============================================================================
-// 渲染层：渲染器 / 场景 / 网格 / 几何 / 相机 / 材质 / 灯光
-// ============================================================================
-export {
-    Renderer,
-    type RendererOptions,
-    type RendererFrameContext
-} from "./render/Renderer";
-
-export {
-    Scene,
-    type SceneOptions,
-    type SceneObject,
-    type Updatable,
-    type Renderable,
-    SCENE_UNIFORM_FLOATS,
-    SCENE_UNIFORM_BYTES
-} from "./render/Scene";
-
-export {
-    Mesh,
-    type MeshOptions,
-    type Vec3 as MeshVec3,
-    OBJECT_UNIFORM_FLOATS,
-    OBJECT_UNIFORM_BYTES
-} from "./render/Mesh";
-
-export {
-    Geometry,
-    type Bounds,
-    INTERLEAVED_FLOATS_PER_VERTEX,
-    INTERLEAVED_BYTES_PER_VERTEX,
-    ATTRIB_POSITION,
-    ATTRIB_NORMAL
-} from "./render/Geometry";
-
+// ---- 渲染层 ----
+export { Renderer } from "./render/Renderer";
+export type { RendererOptions, RendererFrameContext } from "./render/Renderer";
+export { Scene } from "./render/Scene";
+export type { SceneOptions, SceneObject, Updatable, Renderable } from "./render/Scene";
+export { Camera } from "./render/Camera";
+export type { CameraOptions, PerspectiveProjection, OrthographicProjection, Projection, Viewport, Ray } from "./render/Camera";
+export { OrbitCamera } from "./render/OrbitCamera";
+export type { OrbitCameraOptions } from "./render/OrbitCamera";
+export { Mesh } from "./render/Mesh";
+export type { MeshOptions } from "./render/Mesh";
+export { Geometry } from "./render/Geometry";
+export type { Bounds } from "./render/Geometry";
+export { Material } from "./render/Material";
+export type { MaterialOptions } from "./render/Material";
+export { Light, DirectionalLight, AmbientLight, HemisphereLight } from "./render/Light";
+export type { LightBase } from "./render/Light";
 export { SphereGeometry } from "./render/geometry/SphereGeometry";
-
-export {
-    Camera,
-    type CameraOptions,
-    type Projection,
-    type PerspectiveProjection,
-    type OrthographicProjection,
-    type Viewport,
-    type Ray
-} from "./render/Camera";
-
-export {
-    OrbitCamera,
-    type OrbitCameraOptions
-} from "./render/OrbitCamera";
-
-export {
-    Material,
-    type MaterialOptions
-} from "./render/Material";
-
-export {
-    Light,
-    type LightBase,
-    DirectionalLight,
-    AmbientLight,
-    HemisphereLight,
-    isDirectionalLight,
-    isAmbientLight,
-    isHemisphereLight
-} from "./render/Light";
-
+export { CylinderGeometry } from "./render/geometry/CylinderGeometry";
 export type { FrameStats } from "./render/FrameStats";
-
-// ============================================================================
-// 渲染 Pass：PBR / SSAO / Picking
-// ============================================================================
-export {
-    PBRPass,
-    type PBRPassOptions
-} from "./render/passes/PBRPass";
-
-export {
-    SSAOPass,
-    type SSAOPassOptions
-} from "./render/passes/SSAOPass";
-
-export {
-    PickingPass,
-    type PickingPassOptions
-} from "./render/passes/PickingPass";
-
-// ============================================================================
-// 计算层：ComputeContext / ComputePass / StorageBuffer / PingPongBuffer
-// ============================================================================
-export {
-    ComputeContext,
-    type ComputeContextOptions,
-    type DispatchOptions,
-    type TimingResult
-} from "./compute/ComputeContext";
-
-export {
-    ComputePass,
-    type ComputePassOptions,
-    type ExecuteOptions
-} from "./compute/ComputePass";
-
-export {
-    StorageBuffer,
-    type StorageBufferOptions
-} from "./compute/StorageBuffer";
-
-export {
-    PingPongBuffer,
-    type PingPongBufferOptions
-} from "./compute/PingPongBuffer";
-
-// ============================================================================
-// 内置着色器登记（Renderer 内部已自动调用，外部一般不需要直接使用）
-// ============================================================================
-export { registerBuiltinShaders } from "./render/shaders";

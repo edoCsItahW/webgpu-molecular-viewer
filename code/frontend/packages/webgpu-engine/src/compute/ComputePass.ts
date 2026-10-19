@@ -14,7 +14,8 @@
  * @copyright CC BY-NC-SA 2026. All rights reserved.
  * */
 import type {ComputeContext} from "./ComputeContext";
-import type {Nullable, Optional} from "@wmv/common";
+import type { Nullable, Optional } from "@wmv/common";
+import { t } from "../locales";
 
 
 /** 计算操作的构造选项 */
@@ -116,7 +117,7 @@ export class ComputePass {
 
     constructor(options: ComputePassOptions) {
         if (!options.name)
-            throw new Error("MsgId: ComputePass 的 name 不能为空");
+            throw new Error(t("ComputePass.constructor.error_1"));
 
         this.name = options.name;
         this.pipeline = options.pipeline;
@@ -150,7 +151,7 @@ export class ComputePass {
         this.assertAlive();
 
         if (!Number.isInteger(index) || index < 0)
-            throw new Error(`MsgId: ComputePass "${this.name}" 的 bindGroup index 必须是非负整数，实际为 ${index}`);
+            throw new Error(t("ComputePass.setBindGroup.error_1", { name: this.name, index }));
 
         this.#bindGroups[index] = bindGroup;
 
@@ -243,7 +244,7 @@ export class ComputePass {
 
         if (indirectOffset % 4 !== 0)
             throw new Error(
-                `MsgId: ComputePass "${this.name}" 的 indirectOffset 必须 4 字节对齐，实际为 ${indirectOffset}`
+                t("ComputePass.executeIndirect.error_1", { name: this.name, indirectOffset })
             );
 
         const wantTiming = options.timing ?? this.opts.timing;
@@ -307,18 +308,21 @@ export class ComputePass {
         const n = this.#bindGroups.length;
 
         if (n === 0)
-            throw new Error(`MsgId: ComputePass "${this.name}" 未设置任何 bindgroup，请先调用 setBindGroup(0, ...)`);
+            throw new Error(t("ComputePass.validateBindings.error_1", { name: this.name }));
 
         for (let i = 0; i < n; i++)
             if (this.#bindGroups[i] === undefined)
                 throw new Error(
-                    `MsgId: ComputePass "${this.name}" 的 bindgroup 槽位不连续：` +
-                    `槽位 ${i} 未设置，但槽位 ${n - 1} 已设置。请检查 setBindGroup 的调用`
+                    t("ComputePass.validateBindings.error_2", {
+                        name: this.name,
+                        i,
+                        lastSlot: n - 1
+                    })
                 );
     }
 
     private assertAlive(): void {
         if (this.#disposed)
-            throw new Error(`MsgId: ComputePass "${this.name}" 已经销毁`);
+            throw new Error(t("ComputePass.assertAlive.error_1", { name: this.name }));
     }
 }

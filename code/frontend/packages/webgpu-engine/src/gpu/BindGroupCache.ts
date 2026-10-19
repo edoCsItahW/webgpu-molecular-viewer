@@ -13,7 +13,9 @@
  * @desc
  * @copyright CC BY-NC-SA 2026. All rights reserved.
  * */
-import type {GPUContext} from "./GPUContext";
+import { GPUContext } from "./GPUContext";
+import { Console } from "@wmv/common";
+import { t } from "../locales";
 
 
 export interface BindGroupCacheOptions {
@@ -94,7 +96,7 @@ export class BindGroupCache {
         }
 
         if (this.opts.verbose)
-            console.log(`MsgId: 创建BindGroup (${signature}) entries=${entries.length}`);
+            Console.info(t("BindGroupCache.getOrCreate.info_1", { signature, length: entries.length }));
 
         return bindGroup;
     }
@@ -119,7 +121,7 @@ export class BindGroupCache {
         }
 
         if (this.opts.verbose)
-            console.log(`MsgId: 清除BindGroup (${signature})`);
+            Console.info(t("BindGroupCache.invalidate.info_1", { signature }));
     }
 
     invalidateResource(resource: object): void {
@@ -145,11 +147,11 @@ export class BindGroupCache {
         if (this.#disposed) return;
 
         if (this.opts.warnOnLeak && this.cache.size > 0) {
-            console.log(`MsgId: dispose，共释放 ${this.cache.size} 个BindGroup`);
+            Console.warning(t("BindGroupCache.dispose.warning_1", { size: this.cache.size }));
 
             if (this.opts.verbose)
                 for (const sig of this.cache.keys())
-                    console.log(`  - ${sig}`);
+                    Console.info(t("BindGroupCache.dispose.info_1", { sig }));
         }
 
         this.clear();
@@ -232,7 +234,7 @@ export class BindGroupCache {
 
     private assertAlive(): void {
         if (this.#disposed)
-            throw new Error("MsgId: 已销毁，无法继续创建bindGroup");
+            throw new Error(t("BindGroupCache.assertAlive.error_1"));
     }
 
 }

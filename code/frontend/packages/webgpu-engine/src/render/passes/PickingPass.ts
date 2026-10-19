@@ -17,7 +17,8 @@ import type { Pass, PassContext } from "../../gpu/PassManager";
 import { ATTRIB_NORMAL, ATTRIB_POSITION, INTERLEAVED_BYTES_PER_VERTEX, type Geometry } from "../Geometry";
 import type { Renderable } from "../Scene";
 import type { Renderer } from "../Renderer";
-import type { Nullable } from "@wmv/common";
+import { Console, type Nullable } from "@wmv/common";
+import { t } from "../../locales";
 
 
 /**
@@ -104,6 +105,9 @@ export class PickingPass implements Pass {
     /** 1 像素回读缓冲。复用同一块：写 → mapAsync → 读 → unmap → 下次再用 */
     private readonly readbackBuffer: GPUBuffer;
 
+    /** 本帧已录制 copy、等待 afterSubmit 发起 mapAsync 的坐标（物理像素） */
+    #pendingReadback: Nullable<{screenX: number; screenY: number}> = null;
+
 
     constructor(renderer: Renderer, options: PickingPassOptions) {
         this.renderer = renderer;
@@ -147,7 +151,9 @@ export class PickingPass implements Pass {
             },
             primitive: {
                 topology: "triangle-list",
-                cullMode: "back"
+                // 与 PBRPass 保持一致：剔除方向必须与几何绕序匹配，否则拾取到的表面与
+                // 画面看到的表面不是同一个（详见 PBRPass 中同一处的说明）。
+                cullMode: "none"
             },
             // pick 纹理是单采样的中间纹理
             multisample: {count: 1},
@@ -161,7 +167,7 @@ export class PickingPass implements Pass {
         // ---- scene bindgroup ----
         const sceneUniformBuffer = renderer.scene?.sceneUniformBuffer;
         if (!sceneUniformBuffer)
-            throw new Error("MsgId: PickingPass 构造时 Scene 尚未 attachGpu 或 sceneUniformBuffer 未创建");
+            throw new Error(t("PickingPass.constructor.error_1"));
 
         this.sceneBindGroup = renderer.bg.getOrCreate(
             sceneBGL,
@@ -193,13 +199,15 @@ export class PickingPass implements Pass {
     /**
      * 请求下一帧拾取某个屏幕像素。
      *
-     * 坐标用 canvas 的 CSS 像素（不是物理像素），pass 内部乘 devicePixelRatio 换算。
+     * 坐标是**物理像素**（canvas backbuffer 坐标系）：CSS → 物理的换算由
+     * `Renderer.requestPick` 统一做掉（用 canvas 自身比例），这里不再乘 devicePixelRatio，
+     * 否则会二次缩放导致点击位置偏移。
      * 多次调用只保留最后一次。
-     * */
-    requestPick(screenX: number, screenY: number): void {
+     */
+    requestPick(physicalX: number, physicalY: number): void {
         if (this.#disposed) return;
 
-        this.#pendingPick = {screenX, screenY};
+        this.#pendingPick = {screenX: physicalX, screenY: physicalY};
     }
 
     execute(ctx: PassContext): void {
@@ -212,10 +220,8 @@ export class PickingPass implements Pass {
         // 一次请求只处理一次：先消费再干活，回调里再次 requestPick 不会丢
         this.#pendingPick = null;
 
-        // ---- 1. CSS 像素 → 物理像素 ----
-        const dpr = window.devicePixelRatio || 1;
-        const physX = Math.floor(pick.screenX * dpr);
-        const physY = Math.floor(pick.screenY * dpr);
+        const physX = Math.floor(pick.screenX);
+        const physY = Math.floor(pick.screenY);
 
         // 越界直接回 0（背景），不为一次无效点击渲染
         if (physX < 0 || physY < 0 || physX >= ctx.frame.width || physY >= ctx.frame.height) {
@@ -280,8 +286,25 @@ export class PickingPass implements Pass {
             {width: 1, height: 1, depthOrArrayLayers: 1}
         );
 
-        // ---- 4. 异步回读 ----
-        this.readback(pick.screenX, pick.screenY);
+        // ---- 4. 回读：必须等本帧提交之后再发起 mapAsync ----
+        // 这里只登记待回读的位置，真正的 mapAsync 放在 afterSubmit() 里。
+        // 原因：execute 只是录制命令，写这块 buffer 的 copy 要到提交时才执行，
+        // 而"有 pending map / 已 mapped 的 buffer 不能被 submit 写入"是 WebGPU 的硬性规定；
+        // 在 execute 里 mapAsync 会让整帧命令缓冲校验失败（copy 被丢弃、回读恒为 0，
+        // 并且 buffer 会一直停在 mapped 状态导致后续所有拾取都失败）。
+        this.#pendingReadback = {screenX: pick.screenX, screenY: pick.screenY};
+    }
+
+    /**
+     * 本帧提交之后由 PassManager 回调：在这里发起回读，不会与 submit 冲突。
+     */
+    afterSubmit(): void {
+        const pending = this.#pendingReadback;
+        if (!pending || this.#disposed) return;
+
+        this.#pendingReadback = null;
+
+        this.readback(pending.screenX, pending.screenY);
     }
 
     dispose(): void {
@@ -312,7 +335,7 @@ export class PickingPass implements Pass {
                 this.opts.onPick?.({id, screenX, screenY});
             })
             .catch((err: unknown) => {
-                console.error(`MsgId: 拾取回读失败: ${String(err)}`);
+                Console.error(t("PickingPass.readback.error_1", { err: String(err) }));
             })
             .finally(() => {
                 this.#readbackInFlight = false;

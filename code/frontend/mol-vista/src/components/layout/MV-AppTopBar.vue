@@ -8,11 +8,14 @@
   -->
 
 <template>
-    <header class="mv-app-top-bar mat-topbar">
-        <div class="mat-brand">
+
+    <header class="mv-app-top-bar matb">
+
+        <!-- 品牌: logo + 项目名 + 项目副标题 -->
+        <div class="matb-brand">
             <!-- 真实 logo：三原子 + 三键，内联渲染（MV-AppIcon 的 'logo' 仅占位，见 MV-AppIcon.vue 注释） -->
             <svg
-                class="mat-brand-mark"
+                class="matb-brand-mark"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -25,32 +28,47 @@
                 <circle cx="18.6" cy="16.4" r="2.6" />
                 <path d="M10.4 7.8 7 14.2M13.6 7.8 17 14.2M8 16.4h8" />
             </svg>
-            <span class="mat-brand-name">{{ t('common.projectName') }}</span>
-            <span class="mat-brand-sub">{{ t('mainView.subTitle') }}</span>
+
+            <!-- 项目名 -->
+            <span class="matb-brand-name">{{ $t('common.projectName') }}</span>
+
+            <!-- 项目副标题 -->
+            <span class="matb-brand-sub">{{ $t('mainView.subTitle') }}</span>
+
         </div>
 
-        <!-- 结构元信息：文件名 + 描述/规模/分辨率 chips。数据来自 Workbench（应用层），当前为静态占位 -->
-        <div class="mat-doc" :aria-label="t('topbar.doc.ariaLabel')">
-            <span class="mat-doc-name mono">{{ docName }}</span>
-            <span v-if="docLabel" class="mat-chip mat-chip--accent">{{ docLabel }}</span>
-            <span class="mat-chip">{{ atomCount }} {{ t('topbar.doc.atoms') }}</span>
-            <span v-if="resolution" class="mat-chip">{{ resolution }}</span>
+        <!-- 结构元信息：文件名 + 描述/规模/分辨率 chips。TODO: 当前为静态占位 -->
+        <div class="matb-doc" :aria-label="$t('topbar.doc.ariaLabel')">
+            <span class="matb-doc-name mono">{{ docName }}</span>
+            <span v-if="docLabel" class="matb-chip matb-chip--accent">{{ docLabel }}</span>
+            <span class="matb-chip">{{ atomCount }} {{ $t('topbar.doc.atoms') }}</span>
+            <span v-if="resolution" class="matb-chip">{{ resolution }}</span>
         </div>
 
-        <div class="mat-topbar-right">
+        <!-- 操作 + 主题 -->
+        <div class="matb-right">
+
+            <!-- 导入 -->
             <mv-icon-button
                 name="upload"
-                :label="t('topbar.importStructure')"
+                :label="$t('topbar.importStructure')"
                 @click="emit('import')"
             />
+
+            <!-- 适应视图 -->
             <mv-icon-button
                 name="fit"
-                :label="t('topbar.fitView')"
+                :label="$t('topbar.fitView')"
                 @click="emit('fit')"
             />
+
+            <!-- 主题切换器 -->
             <mv-theme-switcher />
+
         </div>
+
     </header>
+
 </template>
 
 <script setup lang="ts">
@@ -65,11 +83,8 @@
  *       文案走 i18n；结构元信息（名称/格式/原子数/警告徽标）后续由 Workbench 只读镜像注入。
  * @copyright CC BY-NC-SA
  * */
-import { useI18n } from 'vue-i18n';
-import MvIconButton from '@/components/widget/MV-IconButton.vue';
 import MvThemeSwitcher from '@/components/widget/MV-ThemeSwitcher.vue';
-
-const { t } = useI18n();
+import MvIconButton from '@/components/widget/MV-IconButton.vue';
 
 // 临时占位数据 —— Workbench 接入后由 props/store 注入
 const docName = '1crn.pdb';
@@ -88,7 +103,7 @@ const emit = defineEmits<{
 <style lang="sass" scoped>
 @use '@/assets/styles/mixins' as *
 
-.mv-app-top-bar
+.matb
     display: grid
     grid-template-columns: auto minmax(0, 1fr) auto
     align-items: center
@@ -99,68 +114,68 @@ const emit = defineEmits<{
     background: var(--bg-panel)
     border-bottom: 1px solid var(--line)
 
-.mat-brand
-    display: flex
-    align-items: center
-    gap: 9px
+    &-brand
+        display: flex
+        align-items: center
+        gap: 9px
 
-.mat-brand-mark
-    width: 20px
-    height: 20px
-    flex: none
-    color: var(--accent)
+        &-mark
+            width: 20px
+            height: 20px
+            flex: none
+            color: var(--accent)
 
-.mat-brand-name
-    font-size: 13px
-    font-weight: 650
-    letter-spacing: .02em
+        &-name
+            font-size: 13px
+            font-weight: 650
+            letter-spacing: .02em
 
-.mat-brand-sub
-    font-size: 10px
-    letter-spacing: .07em
-    text-transform: uppercase
-    color: var(--fg-faint)
-    padding-left: 8px
-    margin-left: 2px
-    border-left: 1px solid var(--line-strong)
+        &-sub
+            font-size: 10px
+            letter-spacing: .07em
+            text-transform: uppercase
+            color: var(--fg-faint)
+            padding-left: 8px
+            margin-left: 2px
+            border-left: 1px solid var(--line-strong)
 
-    +below(1180px)
-        display: none
+            +below(1180px)
+                display: none
 
-.mat-doc
-    display: flex
-    align-items: center
-    gap: 8px
-    justify-content: center
-    min-width: 0
+    &-doc
+        display: flex
+        align-items: center
+        gap: 8px
+        justify-content: center
+        min-width: 0
 
-.mat-doc-name
-    font-size: 12px
-    font-weight: 550
-    letter-spacing: .01em
-    +ellipsis()
+        &-name
+            font-size: 12px
+            font-weight: 550
+            letter-spacing: .01em
+            +ellipsis()
 
-.mat-chip
-    display: inline-flex
-    align-items: center
-    padding: 1px 6px
-    border-radius: 2px
-    font-family: var(--font-mono)
-    font-size: 9.5px
-    letter-spacing: .08em
-    text-transform: uppercase
-    color: var(--fg-muted)
-    border: 1px solid var(--line-strong)
-    background: var(--bg-sunken)
-    white-space: nowrap
+    &-chip
+        display: inline-flex
+        align-items: center
+        padding: 1px 6px
+        border-radius: 2px
+        font-family: var(--font-mono)
+        font-size: 9.5px
+        letter-spacing: .08em
+        text-transform: uppercase
+        color: var(--fg-muted)
+        border: 1px solid var(--line-strong)
+        background: var(--bg-sunken)
+        white-space: nowrap
 
-    &.mat-chip--accent
-        color: var(--accent)
-        border-color: var(--accent)
-        background: var(--accent-soft)
+        &.matb-chip--accent
+            color: var(--accent)
+            border-color: var(--accent)
+            background: var(--accent-soft)
 
-.mat-topbar-right
-    display: flex
-    align-items: center
-    gap: 6px
+    &-right
+        display: flex
+        align-items: center
+        gap: 6px
 </style>

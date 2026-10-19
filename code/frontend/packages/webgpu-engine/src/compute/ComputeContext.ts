@@ -15,7 +15,8 @@
  * */
 import type {GPUContext} from "../gpu/GPUContext";
 import type {BindGroupCache} from "../gpu/BindGroupCache";
-import type {Nullable} from "@wmv/common";
+import { Console, type Nullable } from "@wmv/common";
+import { t } from "../locales";
 
 
 export interface ComputeContextOptions {
@@ -155,8 +156,7 @@ export class ComputeContext {
         const hasFeature = gpu.device.features.has("timestamp-query");
 
         if (wantTiming && !hasFeature)
-            console.warn("MsgId: 请求了 GPU 时间戳查询，但 device 未启用 'timestamp-query' feature，计时功能已禁用。" +
-                ' 如需启用，requestDevice 时要加入 requiredFeatures: ["timestamp-query"]');
+            Console.warning(t("ComputeContext.constructor.warning_1"));
 
         // 计时是诊断功能，不是核心功能：特性缺失或资源创建失败都只降级，不抛错
         let timingSupported = wantTiming && hasFeature;
@@ -200,7 +200,7 @@ export class ComputeContext {
         const size = workgroupSize ?? this.defaultWorkgroupSize;
 
         if (size <= 0)
-            throw new Error(`MsgId: workgroupSize 必须大于 0，实际为 ${size}`);
+            throw new Error(t("ComputeContext.workgroupCount.error_1", { size }));
 
         if (itemCount <= 0) return 0;
 
@@ -208,8 +208,12 @@ export class ComputeContext {
         const maxPerDim = this.gpu.device.limits.maxComputeWorkgroupsPerDimension;
 
         if (count > maxPerDim)
-            throw new Error(`MsgId: workgroup 数量超出限制：${count} > ${maxPerDim}` +
-                `（itemCount=${itemCount}, workgroupSize=${size}），请增大 workgroupSize 或拆分 dispatch`);
+            throw new Error(t("ComputeContext.workgroupCount.error_2", {
+                count,
+                maxPerDim,
+                itemCount,
+                size
+            }));
 
         return count;
     }
@@ -264,7 +268,7 @@ export class ComputeContext {
         const max = this.gpu.device.limits.maxComputeWorkgroupsPerDimension;
 
         if (x > max || y > max || z > max)
-            throw new Error(`MsgId: dispatch3D 的 workgroup 维度超出限制 ${max}: [${x}, ${y}, ${z}]`);
+            throw new Error(t("ComputeContext.dispatch3D.error_1", { max, x, y, z }));
 
         pass.dispatchWorkgroups(x, y, z);
 
@@ -315,7 +319,10 @@ export class ComputeContext {
         if (!this.timingSupported || !this.#timingQuerySet) return;
 
         if (this.#timingSlot >= this.maxTimings) {
-            console.warn(`MsgId: 计时槽位已满（${this.maxTimings}），忽略计时段: ${label}。请增大 maxTimings`);
+            Console.warning(t("ComputeContext.beginTiming.warning_1", {
+                maxTimings: this.maxTimings,
+                label
+            }));
             return;
         }
 
@@ -337,7 +344,7 @@ export class ComputeContext {
         if (!this.timingSupported || !this.#timingQuerySet) return;
 
         if (this.#timingSlot === 0) {
-            console.warn("MsgId: endTiming 调用时没有对应的 beginTiming");
+            Console.warning(t("ComputeContext.endTiming.warning_1"));
             return;
         }
 
@@ -384,7 +391,7 @@ export class ComputeContext {
         if (!this.timingSupported || !readbackBuffer || this.#timingSlot === 0) return {};
 
         if (this.#timingReading) {
-            console.warn("MsgId: 上一次 readTimings 尚未完成，本次跳过");
+            Console.warning(t("ComputeContext.readTimings.warning_1"));
             return {};
         }
 
@@ -413,7 +420,7 @@ export class ComputeContext {
 
             return result;
         } catch (err) {
-            console.error("MsgId: 读取时间戳失败: ", err);
+            Console.error(t("ComputeContext.readTimings.error_1"), err);
             this.#timingReading = false;
 
             return {};
@@ -470,7 +477,7 @@ export class ComputeContext {
 
             return true;
         } catch (err) {
-            console.warn("MsgId: 创建时间戳资源失败，计时功能已禁用: ", err);
+            Console.warning(t("ComputeContext.createTimingResources.warning_1"), err);
             this.destroyTimingResources();
 
             return false;
@@ -501,7 +508,7 @@ export class ComputeContext {
 
         if (typeof tsEncoder.writeTimestamp !== "function") {
             if (!this.#warnedNoWriteTimestamp) {
-                console.warn("MsgId: 当前实现的 GPUCommandEncoder 没有 writeTimestamp，计时功能已禁用");
+                Console.warning(t("ComputeContext.writeTimestamp.warning_1"));
                 this.#warnedNoWriteTimestamp = true;
             }
 
@@ -515,6 +522,6 @@ export class ComputeContext {
 
     private assertAlive(): void {
         if (this.#disposed)
-            throw new Error("MsgId: ComputeContext 已经销毁");
+            throw new Error(t("ComputeContext.assertAlive.error_1"));
     }
 }

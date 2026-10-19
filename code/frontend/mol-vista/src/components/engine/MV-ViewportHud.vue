@@ -28,7 +28,7 @@
  *       父级应每 500ms 更新一次 metrics（ui.md §八：HUD 不每帧更新）。
  * @copyright CC BY-NC-SA
  * */
-type Metric = {
+export type Metric = {
     /** 唯一键，便于 diff */
     key: string;
     /** 显示文本（已格式化，如 "60.0" / "3.1k"） */

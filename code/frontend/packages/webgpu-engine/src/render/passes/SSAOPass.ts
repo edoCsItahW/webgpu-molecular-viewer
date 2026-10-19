@@ -16,7 +16,8 @@
 import type { Pass, PassContext } from "../../gpu/PassManager";
 import type { Renderer } from "../Renderer";
 import { mat4Invert } from "@wmv/mathematical";
-import type { Nullable } from "@wmv/common";
+import { Console, type Nullable } from "@wmv/common";
+import { t } from "../../locales";
 
 
 export interface SSAOPassOptions {
@@ -142,7 +143,7 @@ export class SSAOPass implements Pass {
 
         // ---- 提前校验：group 0 binding 0 是 scene uniform ----
         if (!renderer.scene?.sceneUniformBuffer)
-            throw new Error("MsgId: SSAOPass 构造时 Scene 尚未 attachGpu 或 sceneUniformBuffer 未创建");
+            throw new Error(t("SSAOPass.constructor.error_1"));
     }
 
     get disposed(): boolean {
@@ -247,7 +248,7 @@ export class SSAOPass implements Pass {
     private sceneUniformBuffer(): GPUBuffer {
         const buffer = this.renderer.scene?.sceneUniformBuffer;
         if (!buffer)
-            throw new Error("MsgId: SSAOPass 拿不到 scene uniform buffer，Scene 尚未 attachGpu");
+            throw new Error(t("SSAOPass.sceneUniformBuffer.error_1"));
 
         return buffer;
     }

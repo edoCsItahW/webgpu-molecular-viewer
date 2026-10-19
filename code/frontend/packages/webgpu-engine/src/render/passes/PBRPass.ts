@@ -17,7 +17,8 @@ import type { Pass, PassContext } from "../../gpu/PassManager";
 import { ATTRIB_NORMAL, ATTRIB_POSITION, INTERLEAVED_BYTES_PER_VERTEX, type Geometry } from "../Geometry";
 import type { Renderable, Scene } from "../Scene";
 import type { Renderer } from "../Renderer";
-import type { Nullable } from "@wmv/common";
+import { Console, type Nullable } from "@wmv/common";
+import { t } from "../../locales";
 
 
 /**
@@ -139,7 +140,15 @@ export class PBRPass implements Pass {
             },
             primitive: {
                 topology: "triangle-list",
-                cullMode: "back"
+                // 暂不剔除背面：WebGPU 的 frontFace 字面量（默认 'ccw'）与几何绕序的对应关系
+                // 取决于"framebuffer 的 y 轴向下"这一约定，本机尚未实测；而"绕序与剔除方向不匹配"
+                // 会让所有球面整体不可见（只剩内表面 → 亮度≈背景色 → 视口一片黑）。
+                // 对不透明凸体（球）来说深度测试已经决定了可见面，关闭剔除只多画一遍背面
+                // （片段着色器无 discard/无 UAV 写入，驱动会做早期深度测试挡掉）。
+                // 若要开回来：先在本机确认 frontFace 语义（GL 习惯用 'ccw'，Vulkan 习惯用 'cw'），
+                // 再与 SphereGeometry 的绕序对齐；引入 ribbon / surface 等开放曲面时，
+                // 应按材质配置 side，而不是在这里全局写死。
+                cullMode: "none"
             },
             // 写交换链时跟随 GPUContext 的 MSAA；写中间纹理时中间纹理是单采样的
             multisample: {count: this.offscreen ? 1 : renderer.gpu.options.sampleCount},
@@ -153,7 +162,7 @@ export class PBRPass implements Pass {
         // ---- scene bindgroup ----
         const sceneUniformBuffer = renderer.scene?.sceneUniformBuffer;
         if (!sceneUniformBuffer)
-            throw new Error("MsgId: PBRPass 构造时 Scene 尚未 attachGpu 或 sceneUniformBuffer 未创建");
+            throw new Error(t("PBRPass.constructor.error_1"));
 
         this.sceneBindGroup = renderer.bg.getOrCreate(
             sceneBGL,

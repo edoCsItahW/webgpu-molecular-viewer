@@ -13,13 +13,13 @@
             <!-- WebGPU canvas（引擎未接入前为空，仅占位以保持唯一视口契约 ui.md §五） -->
             <canvas ref="canvasRef" class="mev-canvas" />
 
-            <!-- 静态 SVG 占位：引擎未就绪时显示示意分子结构 -->
+            <!-- 静态 SVG 占位：引擎未就绪或 WebGPU 不可用时显示示意分子结构 -->
             <svg
-                v-if="!engineReady"
+                v-if="!engineReady || !webgpuAvailable"
                 class="mev-molecule"
                 viewBox="0 0 600 400"
                 preserveAspectRatio="xMidYMid meet"
-                aria-label="分子结构预览"
+                :aria-label="webgpuAvailable ? '分子结构加载中' : 'WebGPU 不可用，显示静态占位'"
             >
                 <defs>
                     <radialGradient id="mev-gC" cx="34%" cy="28%" r="78%">
@@ -87,23 +87,58 @@
  * @author edocsitahw
  * @version 1.1
  * @date 2026/09/27 16:40
- * @desc 引擎视口容器。当前为静态占位阶段：保留 canvas（ui.md §五：视口唯一契约）
- *       + 内联 SVG 示意分子。@mol/engine 接入后，canvas 由 Renderer 驱动，
- *       SVG 占位在 engineReady=true 时移除。GPU 对象将通过 provide(InjectionKey) 透传，
- *       绝不进 Pinia（ui.md §六）。
+ * @desc 引擎视口容器。绑定 canvas 到 WebGPU Renderer，引擎就绪后渲染真实 3D 分子；
+ *       未就绪或浏览器不支持 WebGPU 时显示 SVG 示意占位。GPU 对象由 useEngine 持有，
+ *       通过 provide 透传给子组件（HUD / Gizmo 等），绝不进 Pinia（ui.md §六）。
  * @copyright CC BY-NC-SA
  * */
-import { ref, provide } from 'vue';
-import type { Optional } from '@/types';
+import { onMounted, provide, ref, shallowRef } from 'vue';
 import { ENGINE_KEY, type EngineContext } from '@/utils/constants';
+import { useEngine, type EngineHandle } from '@/composables/useEngine';
 
-const canvasRef = ref<Optional<HTMLCanvasElement>>(null);
+const canvasRef = ref<HTMLCanvasElement | null>(null);
+const handle = shallowRef<EngineHandle | null>(null);
+
 const engineReady = ref(false);
+const webgpuAvailable = ref(true);
+const metrics = ref({ fps: '0.0', ms: '0.00', inst: '0' });
+
+onMounted(() => {
+    handle.value = useEngine(canvasRef, (h) => {
+        engineReady.value = h.ready.value;
+        webgpuAvailable.value = h.webgpuAvailable.value;
+    });
+
+    // 响应式同步 ready / metrics 到本地 ref，供模板与 provide 使用
+    if (handle.value) {
+        engineReady.value = handle.value.ready.value;
+        webgpuAvailable.value = handle.value.webgpuAvailable.value;
+    }
+});
+
+// 轮询同步（ready 是异步置位的）
+function syncMetrics() {
+    if (handle.value) {
+        engineReady.value = handle.value.ready.value;
+        webgpuAvailable.value = handle.value.webgpuAvailable.value;
+        metrics.value = handle.value.metrics.value;
+    }
+    requestAnimationFrame(syncMetrics);
+}
+requestAnimationFrame(syncMetrics);
 
 const ctx: EngineContext = { ready: engineReady };
 provide(ENGINE_KEY, ctx);
 
-defineExpose({ canvasRef, engineReady });
+defineExpose({
+    canvasRef,
+    engineReady,
+    webgpuAvailable,
+    metrics,
+    fit: () => handle.value?.fit(),
+    toggleGrid: () => handle.value?.toggleGrid(),
+    toggleHydrogens: () => handle.value?.toggleHydrogens(),
+});
 </script>
 
 <style lang="sass" scoped>
@@ -111,6 +146,11 @@ defineExpose({ canvasRef, engineReady });
 
 .mv-engine-viewport
     position: relative
+    // 关键：本元素是 .mv-molecule-viewer（display: flex）的 flex item，
+    // 而它的在流内容只有绝对定位的浮层（.mev-scene / 四角 overlay），
+    // 不写 flex 主轴尺寸时按内容宽度收缩 → 宽度塌成 0 → canvas 只有 1px 宽（视口一片黑的根因）。
+    flex: 1 1 auto
+    width: 100%
     min-width: 0
     min-height: 0
     overflow: hidden
@@ -129,17 +169,25 @@ defineExpose({ canvasRef, engineReady });
 .mev-scene
     position: absolute
     inset: 0
-    display: grid
-    place-items: center
-    padding: 24px
 
+// canvas 必须"绝对定位 + 显式 100%"两条一起写：
+//   1) canvas 是 replaced element，只写 position:absolute; inset:0 不会拉伸它 —— 它仍按固有尺寸
+//      (默认 300×150) 摆放，所以必须显式给 width/height:100%；
+//   2) 百分比要相对"尺寸确定"的包含块解析。之前用 display:grid + place-items:center 让 canvas 的
+//      百分比高度落在 auto 轨道上，轨道尺寸又取决于 canvas 的固有尺寸（由 GPUContext 按
+//      clientWidth/clientHeight 回写 attributes）→ 自我放大反馈，实测 backbuffer 涨到 772×526504，
+//      超过 maxTextureDimension2D 后每帧 GPUValidationError、画面全黑且看不出原因。
 .mev-canvas
+    position: absolute
+    inset: 0
     width: 100%
     height: 100%
     display: block
 
 .mev-molecule
     position: absolute
+    inset: 0
+    margin: auto
     width: 100%
     height: 100%
     max-width: 760px

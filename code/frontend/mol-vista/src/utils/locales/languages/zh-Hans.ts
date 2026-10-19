@@ -15,7 +15,7 @@
  * */
 export default {
     common: {
-        projectName: "MolScope",
+        projectName: "Mol-Vista",
         notAvailable: "不可用",
         cancel: "取消",
         retry: "重试",
@@ -23,11 +23,20 @@ export default {
         ok: "确定"
     },
     mainView: {
-        subTitle: "WebGPU 分子工作台"
+        subTitle: "WebGPU 分子工作台",
+        viewport: {
+            toolbar: {
+                ariaLabel: "视口工具条"
+            },
+            hud: {
+                ariaLabel: "性能监控"
+            }
+        }
     },
     topbar: {
         importStructure: "导入结构",
         fitView: "适应视图",
+        themeAria: "主题切换",
         doc: {
             ariaLabel: "结构元信息",
             atoms: "原子"
@@ -44,17 +53,21 @@ export default {
         import: "导入",
         dropzone: {
             prompt: "拖入 PDB / SDF 文件",
-            hint: "或点击浏览本地文件"
+            hint: "或点击浏览本地文件",
+            parsing: "正在解析分子…"
         },
         chains: {
             title: "链",
             count: "{shown} / {total}",
             peptide: "多肽链 {id}",
-            water: "水分子"
+            water: "水分子",
+            unknown: "未知链",
+            empty: "暂无链数据"
         },
         legend: {
             title: "元素图例",
-            scheme: "CPK"
+            scheme: "CPK",
+            empty: "暂无元素数据"
         }
     },
     viewport: {
@@ -125,6 +138,11 @@ export default {
                 spaceFill: "空间填充",
                 wireframe: "线框",
                 cartoon: "卡通"
+            },
+            capability: {
+                cartoon: "当前结构不含二级结构信息，卡通模式不可用",
+                charge: "当前结构不含电荷信息，按电荷着色不可用",
+                secondary: "当前结构不含二级结构信息，按二级结构着色不可用"
             },
             colorScheme: "着色方案",
             colorSchemes: {

@@ -14,8 +14,8 @@
  * @copyright CC BY-NC-SA 2026. All rights reserved.
  * */
 import {createI18n, type I18nOptions} from "vue-i18n";
-import * as process from "node:process";
 import { getConfig, load } from "..";
+import type { MessageSchema } from "../types";
 
 
 export default async function createI18nInstance() {
@@ -23,18 +23,19 @@ export default async function createI18nInstance() {
 
     const defaultMessages = await load(config.defaultLanguage);
 
-    return createI18n({
+    const options: I18nOptions = {
         legacy: false,
         locale: config.defaultLanguage,
         fallbackLocale: config.fallbackLocale,
         messages: {
-            [config.defaultLanguage]: defaultMessages
+            [config.defaultLanguage]: defaultMessages as unknown as MessageSchema
         },
         datetimeFormats: config.datetimeFormats as I18nOptions['datetimeFormats'],
         numberFormats: config.numberFormats as I18nOptions['numberFormats'],
-        pluralizationRules: config.pluralizationRules,
-        missingWarn: process.env?.NODE_ENV !== "production",
-        fallbackWarn: process.env?.NODE_ENV !== "production",
-        silentTranslationWarn: process.env?.NODE_ENV !== "production"
-    });
+        missingWarn: import.meta.env.DEV,
+        fallbackWarn: import.meta.env.DEV,
+        silentTranslationWarn: import.meta.env.DEV
+    };
+
+    return createI18n(options);
 }

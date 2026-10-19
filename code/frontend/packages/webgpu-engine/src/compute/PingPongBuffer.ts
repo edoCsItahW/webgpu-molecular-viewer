@@ -15,6 +15,7 @@
  * */
 import type { ResourceManager } from "../gpu/ResourceManager";
 import { StorageBuffer } from "./StorageBuffer";
+import { t } from "../locales";
 
 
 /**
@@ -215,6 +216,6 @@ export class PingPongBuffer {
 
     private assertAlive(): void {
         if (this.#disposed)
-            throw new Error("MsgId: PingPongBuffer 已经销毁，无法操作双缓冲");
+            throw new Error(t("PingPongBuffer.assertAlive.error_1"));
     }
 }
