@@ -54,6 +54,12 @@ export interface MeshOptions {
     /** 调试用名字 */
     name?: string;
 
+    /**
+     * 拾取 ID（u32）。0 保留给背景，真实对象应从 1 开始分配。
+     * PickingPass 会把它写进 r32uint 纹理并回读；不传时默认为 0（不参与拾取）。
+     */
+    objectId?: number;
+
     /** 是否可见，默认 true */
     visible?: boolean;
 
@@ -92,6 +98,13 @@ export class Mesh implements Renderable {
     material: Material;
 
     /**
+     * 拾取 ID（u32）。
+     * 0 保留给背景，真实对象从 1 开始。PickingPass 把它写进 ObjectUniforms 的最后一个槽位，
+     * shader 侧 `objectId: u32` 读取后输出到 r32uint 纹理。
+     */
+    objectId: number;
+
+    /**
      * 对象级 uniform buffer。
      * 未传入 rm 时为 null，此时 packObjectUniform() 仍可工作
      * （纯 CPU 场景 / 单元测试）。写入前调用方需检查这个字段。
@@ -122,6 +135,7 @@ export class Mesh implements Renderable {
         this.geometry = options.geometry;
         this.material = options.material ?? new Material();
         this.name = options.name;
+        this.objectId = options.objectId ?? 0;
         this.visible = options.visible ?? DEFAULT_MESH_OPTIONS.visible;
 
         this.position = copyVec3(options.position ?? DEFAULT_MESH_OPTIONS.position);
@@ -237,10 +251,14 @@ export class Mesh implements Renderable {
     /**
      * 打包对象级 uniform。
      *
-     * 布局：
-     *   0  ~ 15 : model
-     *   16 ~ 18 : color.rgb
-     *   19      : pad
+     * 布局（与 WGSL ObjectUniforms 一致）：
+     *   0  ~ 15 : model        (mat4x4<f32>)
+     *   16 ~ 18 : color.rgb    (vec3<f32>)
+     *   19      : objectId     (u32，PickingPass 用；PBR 忽略)
+     *
+     * objectId 必须按 u32 的位模式写入：Float32Array[19] = 0.0 的位模式恰好是 u32 0，
+     * 但若直接写 `d[19] = objectId` 会被当作浮点 reinterpret，非零 id 会错位。
+     * 故用同一块 ArrayBuffer 的 Uint32Array 视图写入第 19 个元素。
      *
      * 返回的是内部复用数组，每帧覆盖。调用方（Renderer）拿到后应立即 writeBuffer，
      * 不要长期持有。
@@ -256,7 +274,9 @@ export class Mesh implements Renderable {
         d[16] = c[0];
         d[17] = c[1];
         d[18] = c[2];
-        d[19] = 0;
+
+        // objectId 是 u32，用同缓冲区的 Uint32 视图写入，避免浮点 reinterpret 错位
+        new Uint32Array(d.buffer)[19] = this.objectId >>> 0;
 
         return d;
     }

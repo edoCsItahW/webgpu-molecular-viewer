@@ -9,10 +9,9 @@
  * @file index.d.ts
  * @author edocsitahw
  * @version 1.1
- * @date 2026/09/16 12:35
+ * @date 2026/09/17 14:53
  * @desc
  * @copyright CC BY-NC-SA 2026. All rights reserved.
  * */
-export type Optional<T> = T | undefined;
-
-export type Nullable<T> = T | null;
+export * from "./physics";
+export * from "./math";
