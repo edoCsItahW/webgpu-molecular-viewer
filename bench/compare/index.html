@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <title>3Dmol.js baseline</title>
+    <style>
+        html, body { margin: 0; padding: 0; background: #0e1116; overflow: hidden; }
+        #container { width: 980px; height: 830px; }
+    </style>
+</head>
+<body>
+<div id="container"></div>
+<script src="/3Dmol-min.js"></script>
+<script>
+    window.__ready = false;
+    window.__error = null;
+
+    function makeViewer() {
+        return $3Dmol.createViewer(document.getElementById('container'), {backgroundColor: '#12161d', antialias: true});
+    }
+
+    window.loadMolecule = async (kind, file) => {
+        try {
+            const url = `/data?kind=${kind}&file=${encodeURIComponent(file)}`;
+            const res = await fetch(url);
+            if (!res.ok) throw new Error(`fetch ${res.status}`);
+            const text = await res.text();
+
+            const t0 = performance.now();
+            const viewer = makeViewer();
+            const model = viewer.addModel(text, kind === 'pdb' ? 'pdb' : 'sdf');
+            viewer.setStyle({}, {stick: {radius: 0.12}, sphere: {scale: 1.0}});
+            viewer.zoomTo();
+            viewer.render();
+            await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+            window.__viewer = viewer;
+            window.__model = model;
+            return {ms: +(performance.now() - t0).toFixed(0), atoms: model.selectedAtoms({}).length, error: null};
+        } catch (e) {
+            window.__error = String(e && e.message ? e.message : e);
+            return {ms: null, atoms: 0, error: window.__error};
+        }
+    };
+
+    window.loadCartoon = async (kind, file) => {
+        const res = await fetch(`/data?kind=${kind}&file=${encodeURIComponent(file)}`);
+        const text = await res.text();
+        const t0 = performance.now();
+        const viewer = makeViewer();
+        const model = viewer.addModel(text, 'pdb');
+        viewer.setStyle({}, {cartoon: {color: 'spectrum'}});
+        viewer.zoomTo();
+        viewer.render();
+        await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+        window.__viewer = viewer;
+        return {ms: +(performance.now() - t0).toFixed(0), atoms: model.selectedAtoms({}).length};
+    };
+
+    window.__ready = true;
+</script>
+</body>
+</html>
