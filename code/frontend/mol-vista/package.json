@@ -4,12 +4,12 @@
     "private": true,
     "type": "module",
     "scripts": {
-        "dev": "vite",
+        "dev": "node ../scripts/sync-examples.mjs && vite",
         "build": "run-p type-check \"build-only {@}\" --",
         "preview": "vite preview",
         "test:unit": "vitest",
         "test:e2e": "playwright test",
-        "build-only": "vite build",
+        "build-only": "node ../scripts/sync-examples.mjs && vite build",
         "type-check": "vue-tsc --build",
         "lint": "run-s \"lint:*\"",
         "lint:oxlint": "oxlint . --fix",
@@ -20,6 +20,8 @@
         "@rdkit/rdkit": "^2026.3.6",
         "@vueuse/core": "^15.0.0",
         "@wmv/common": "link:../packages/common",
+        "@wmv/parser": "link:../packages/parser",
+        "@wmv/structure": "link:../packages/structure",
         "@wmv/webgpu-engine": "link:../packages/webgpu-engine",
         "pinia": "^4.0.2",
         "vue": "^3.5.40",
@@ -58,3 +60,6 @@
         "node": "^22.18.0 || >=24.12.0"
     }
 }
+
+
+
