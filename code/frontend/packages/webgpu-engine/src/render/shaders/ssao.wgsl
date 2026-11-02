@@ -85,8 +85,8 @@ fn vs_main(@builtin(vertex_index) idx: u32) -> VertexOutput {
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) f32 {
   // ---- 1. 当前像素的深度 ----
-  // NDC → 屏幕像素坐标
-  let screenUV = in.ndc * 0.5 + vec2<f32>(0.5, 0.5);
+  // NDC → 屏幕 UV（WebGPU 的 NDC y 向上，屏幕像素 y 向下）
+  let screenUV = vec2<f32>(in.ndc.x * 0.5 + 0.5, 0.5 - in.ndc.y * 0.5);
   let pixelCoord = vec2<i32>(screenUV * ssao.screenSize);
 
   let depth = textureLoad(depthTex, pixelCoord, 0);
@@ -104,12 +104,17 @@ fn fs_main(in: VertexOutput) -> @location(0) f32 {
   let intensity = ssao.params.y;
   let bias = ssao.params.z;
 
-  // 屏幕空间半径：把视图空间半径近似映射到像素
-  // 这个映射不精确，但视觉上够用；精确做法需要用到相机投影参数
-  let screenRadius = radius * 100.0;
+  // 屏幕空间半径：视图空间半径按透视投影换算成像素，
+  // 再按视野距离缩放（否则近处过小、远处过大）
+  let focal = 1.0 / max(ssao.invProj[1][1], 1e-4);
+  let screenRadius = clamp(
+    radius * focal * ssao.screenSize.y * 0.5 / max(-viewPos.z, 0.1),
+    1.0,
+    64.0
+  );
 
   var occlusion = 0.0;
-  let samples = 8;
+  let samples = 8u;
 
   for (var i = 0u; i < samples; i = i + 1u) {
     // 8 方向均匀分布
@@ -130,14 +135,13 @@ fn fs_main(in: VertexOutput) -> @location(0) f32 {
       continue;  // 邻居是背景
     }
 
-    // 邻居的 NDC 坐标
-    let sampleNdc = (vec2<f32>(sampleCoord) / ssao.screenSize) * 2.0 - 1.0;
-    // 注意：NDC 的 y 方向与屏幕像素 y 方向相反
-    let sampleNdcFlipped = vec2<f32>(sampleNdc.x, -sampleNdc.y);
+    // 邻居的 NDC 坐标（UV → NDC，y 再次翻转回来）
+    let sampleUv = (vec2<f32>(sampleCoord) + vec2<f32>(0.5)) / ssao.screenSize;
+    let sampleNdc = vec2<f32>(sampleUv.x * 2.0 - 1.0, 1.0 - sampleUv.y * 2.0);
 
     // 重建邻居的视图空间位置
     let sampleViewPos = reconstructViewPos(
-      sampleNdcFlipped, sampleDepth, ssao.invProj
+      sampleNdc, sampleDepth, ssao.invProj
     );
 
     // ---- 4. 遮挡判断 ----

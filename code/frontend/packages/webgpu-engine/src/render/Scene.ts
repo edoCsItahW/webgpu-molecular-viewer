@@ -14,6 +14,7 @@
  * @copyright CC BY-NC-SA 2026. All rights reserved.
  * */
 import type { Camera } from "./Camera";
+import type { Batch } from "./Batch";
 import { Light, DirectionalLight, isAmbientLight, isDirectionalLight, isHemisphereLight } from "./Light";
 import type { GPUContext } from "../gpu/GPUContext";
 import type { ResourceManager } from "../gpu/ResourceManager";
@@ -31,7 +32,7 @@ import { t } from "../locales";
  *   lightColor   : vec3<f32>   ——  3 floats + 1 pad
  *   ambientColor : vec3<f32>   ——  3 floats + 1 pad
  * */
-export const SCENE_UNIFORM_FLOATS = 32;
+export const SCENE_UNIFORM_FLOATS = 64;
 
 /** 场景级 uniform 的字节数（32 floats × 4 = 128） */
 export const SCENE_UNIFORM_BYTES = SCENE_UNIFORM_FLOATS * 4;
@@ -129,6 +130,15 @@ export class Scene {
     /** 可渲染对象 */
     #renderables: Renderable[] = [];
 
+    /**
+     * 实例化批次。
+     *
+     * 与 #renderables 并列而不是混在一起：批次不需要每对象 uniform，
+     * 渲染路径也完全不同（一次 draw 画 N 个实例，见 PBRPass / PickingPass）。
+     * 拆开可以让旧的 Mesh 路径原样保留，便于回退与增量迁移（文档 08 §9）。
+     * */
+    #batches: Batch[] = [];
+
     /** scene uniform 打包缓存（每帧复用同一块内存） */
     #sceneData = new Float32Array(SCENE_UNIFORM_FLOATS);
 
@@ -162,6 +172,11 @@ export class Scene {
     /** 可渲染对象只读列表（不暴露内部数组，防止外部改） */
     get renderables(): readonly Renderable[] {
         return this.#renderables;
+    }
+
+    /** 实例化批次只读列表 */
+    get batches(): readonly Batch[] {
+        return this.#batches;
     }
 
     /** 可更新对象只读列表 */
@@ -216,6 +231,37 @@ export class Scene {
         return this;
     }
 
+    /**
+     * 添加实例化批次。
+     *
+     * 批次只参与绘制，不参与 update / findByName 的对象列表；
+     * 重复添加同样视为 bug。
+     * */
+    addBatch(...batches: Batch[]): this {
+        this.assertAlive();
+
+        for (const batch of batches) {
+            if (batch == null) continue;
+
+            if (this.#batches.includes(batch))
+                throw new Error(
+                    t("Scene.add.error_1", { name: batch.name ?? "<未命名批次>" })
+                );
+
+            this.#batches.push(batch);
+        }
+
+        return this;
+    }
+
+    /** 移除一个批次。不销毁它，销毁请自行调用 batch.dispose() */
+    removeBatch(batch: Batch): this {
+        const idx = this.#batches.indexOf(batch);
+        if (idx >= 0) this.#batches.splice(idx, 1);
+
+        return this;
+    }
+
     /** 移除一个对象。它会从所有内部列表中移除 */
     remove(object: SceneObject): this {
         const idx = this.#objects.indexOf(object);
@@ -237,6 +283,7 @@ export class Scene {
         this.#objects.length = 0;
         this.#updatables.length = 0;
         this.#renderables.length = 0;
+        this.#batches.length = 0;
     }
 
     /** 按名字查找第一个匹配的对象 */
@@ -298,16 +345,18 @@ export class Scene {
     /**
      * 打包场景级 uniform。
      *
-     * 布局（与 SCENE_UNIFORM_FLOATS 一致）：
+     * 布局（与 SCENE_UNIFORM_FLOATS 一致，P2 起扩到 64 floats）：
      *   0  ~ 15 : viewProj
-     *   16 ~ 18 : cameraPos.xyz
-     *   19      : pad
-     *   20 ~ 22 : lightDir.xyz
-     *   23      : pad
-     *   24 ~ 26 : lightColor.rgb
-     *   27      : pad
-     *   28 ~ 30 : ambientColor.rgb
-     *   31      : pad
+     *   16 ~ 31 : view        （世界 → 视图；impostor 在视图空间做射线求交）
+     *   32 ~ 47 : proj        （视图 → 裁剪；解析 ndc → 视线方向与深度）
+     *   48 ~ 50 : cameraPos.xyz
+     *   51      : pad
+     *   52 ~ 54 : lightDir.xyz
+     *   55      : pad
+     *   56 ~ 58 : lightColor.rgb
+     *   59      : pad
+     *   60 ~ 62 : ambientColor.rgb
+     *   63      : pad
      *
      * 灯光按类型分派：
      *   ambientColor = 所有 AmbientLight 的 color * intensity 之和，
@@ -322,15 +371,17 @@ export class Scene {
 
         const d = this.#sceneData;
 
-        // viewProj
+        // viewProj / view / proj
         d.set(cam.viewProjectionMatrix(aspect), 0);
+        d.set(cam.viewMatrix(), 16);
+        d.set(cam.projectionMatrix(aspect), 32);
 
         // cameraPos
         const pos = cam.position;
-        d[16] = pos[0];
-        d[17] = pos[1];
-        d[18] = pos[2];
-        d[19] = 0;
+        d[48] = pos[0];
+        d[49] = pos[1];
+        d[50] = pos[2];
+        d[51] = 0;
 
         // 累加环境光 + 半球光
         let ambR = 0, ambG = 0, ambB = 0;
@@ -355,25 +406,25 @@ export class Scene {
 
         // 方向光
         if (dirLight) {
-            d[20] = dirLight.direction[0];
-            d[21] = dirLight.direction[1];
-            d[22] = dirLight.direction[2];
-            d[23] = 0;
+            d[52] = dirLight.direction[0];
+            d[53] = dirLight.direction[1];
+            d[54] = dirLight.direction[2];
+            d[55] = 0;
 
-            d[24] = dirLight.color[0] * dirLight.intensity;
-            d[25] = dirLight.color[1] * dirLight.intensity;
-            d[26] = dirLight.color[2] * dirLight.intensity;
-            d[27] = 0;
+            d[56] = dirLight.color[0] * dirLight.intensity;
+            d[57] = dirLight.color[1] * dirLight.intensity;
+            d[58] = dirLight.color[2] * dirLight.intensity;
+            d[59] = 0;
         } else {
-            d[20] = 0; d[21] = 1; d[22] = 0; d[23] = 0;
-            d[24] = 0; d[25] = 0; d[26] = 0; d[27] = 0;
+            d[52] = 0; d[53] = 1; d[54] = 0; d[55] = 0;
+            d[56] = 0; d[57] = 0; d[58] = 0; d[59] = 0;
         }
 
         // 环境光
-        d[28] = ambR;
-        d[29] = ambG;
-        d[30] = ambB;
-        d[31] = 0;
+        d[60] = ambR;
+        d[61] = ambG;
+        d[62] = ambB;
+        d[63] = 0;
 
         return d;
     }
@@ -391,9 +442,14 @@ export class Scene {
             for (const obj of this.#objects)
                 obj.dispose?.();
 
+        if (!options.keepObjects)
+            for (const batch of this.#batches)
+                batch.dispose();
+
         this.#objects.length = 0;
         this.#updatables.length = 0;
         this.#renderables.length = 0;
+        this.#batches.length = 0;
         this.lights.length = 0;
         this.camera = null;
 
@@ -432,3 +488,4 @@ function isRenderable(obj: unknown): obj is Renderable {
         obj !== null &&
         typeof (obj as { packObjectUniform?: unknown }).packObjectUniform === "function";
 }
+

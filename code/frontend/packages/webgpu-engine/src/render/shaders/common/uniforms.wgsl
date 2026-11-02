@@ -9,20 +9,27 @@
 //   1. PBR 与 Picking 都需要 SceneUniforms / ObjectUniforms
 //   2. 结构体字段改了，只改这一个文件，所有引用它的 shader 一起更新
 //   3. ShaderLibrary 的 #include 保证字段定义只有一份真值
+//
+// P2 变更：SceneUniforms 增加 view / proj 两个矩阵（供 impostor 在视图空间
+// 做射线求交与深度计算）。总大小 32 → 64 floats（128 → 256 B）。
 // ============================================================================
 
 // ----------------------------------------------------------------------------
 // SceneUniforms
 // 布局（float 偏移）：
 //   0  ~ 15 : viewProj
-//   16 ~ 18 : cameraPos.xyz    (19: pad)
-//   20 ~ 22 : lightDir.xyz     (23: pad)
-//   24 ~ 26 : lightColor.rgb   (27: pad)
-//   28 ~ 30 : ambientColor.rgb (31: pad)
-// 合计 32 floats = 128 字节
+//   16 ~ 31 : view
+//   32 ~ 47 : proj
+//   48 ~ 50 : cameraPos.xyz    (51: pad)
+//   52 ~ 54 : lightDir.xyz     (55: pad)
+//   56 ~ 58 : lightColor.rgb   (59: pad)
+//   60 ~ 62 : ambientColor.rgb (63: pad)
+// 合计 64 floats = 256 字节
 // ----------------------------------------------------------------------------
 struct SceneUniforms {
   viewProj: mat4x4<f32>,
+  view: mat4x4<f32>,
+  proj: mat4x4<f32>,
   cameraPos: vec3<f32>,
   _pad0: f32,
   lightDir: vec3<f32>,

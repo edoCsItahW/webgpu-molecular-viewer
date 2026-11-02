@@ -17,6 +17,12 @@ import type { Pass, PassContext } from "../../gpu/PassManager";
 import { ATTRIB_NORMAL, ATTRIB_POSITION, INTERLEAVED_BYTES_PER_VERTEX, type Geometry } from "../Geometry";
 import type { Renderable, Scene } from "../Scene";
 import type { Renderer } from "../Renderer";
+import {
+    BATCH_ATTRIB_COLOR,
+    BATCH_ATTRIB_ID,
+    BATCH_ATTRIB_MODEL,
+    BATCH_INSTANCE_BYTES
+} from "../Batch";
 import { Console, type Nullable } from "@wmv/common";
 import { t } from "../../locales";
 
@@ -90,6 +96,20 @@ export class PBRPass implements Pass {
     private readonly pipeline: GPURenderPipeline;
 
     /**
+     * 实例化批次的管线。
+     * 与 pipeline 共用 scene bindgroup，但不需要 group 1（颜色 / 变换来自实例属性），
+     * 所以 pipeline layout 只有 scene 一层。
+     * */
+    private readonly batchPipeline: GPURenderPipeline;
+
+    /** 球 / 柱 impostor 管线（P2/P3）：storage 实例 + visible 索引，indirect draw */
+    private readonly spherePipeline: GPURenderPipeline;
+    private readonly cylinderPipeline: GPURenderPipeline;
+
+    /** GPU 批次的数据 bindgroup layout：instances + visible */
+    private readonly batchDataBGL: GPUBindGroupLayout;
+
+    /**
      * 对象级 bindgroup 缓存。
      * key 是对象身份，保证同一个 Mesh 每帧拿到同一个 bindgroup；
      * WeakMap 让 Mesh 被回收后对应条目自动消失。
@@ -158,6 +178,70 @@ export class PBRPass implements Pass {
                 depthCompare: "less"
             }
         });
+
+        // ---- 实例化批次管线：同几何布局 + 实例缓冲（model/color/id） ----
+        const batchModule = renderer.shaders.compile("pbr-batch");
+
+        this.batchPipeline = renderer.pm.getRenderPipeline("pbr-batch", {
+            layout: renderer.pm.getPipelineLayout("pbr-batch", [sceneBGL]),
+            vertex: {
+                module: batchModule,
+                entryPoint: "vs_main",
+                buffers: [PBRPass.vertexLayout(), PBRPass.instanceLayout()]
+            },
+            fragment: {
+                module: batchModule,
+                entryPoint: "fs_main",
+                targets: [{format: renderer.gpu.format}]
+            },
+            primitive: {
+                topology: "triangle-list",
+                cullMode: "none"
+            },
+            multisample: {count: this.offscreen ? 1 : renderer.gpu.options.sampleCount},
+            depthStencil: {
+                format: renderer.gpu.options.depthFormat,
+                depthWriteEnabled: true,
+                depthCompare: "less"
+            }
+        });
+
+        // ---- 球 / 柱 impostor 管线：storage 实例 + visible 索引 + indirect draw（P3） ----
+        this.batchDataBGL = renderer.pm.getBindGroupLayouts("batch-data", [
+            {binding: 0, visibility: GPUShaderStage.VERTEX, buffer: {type: "read-only-storage"}},
+            {binding: 1, visibility: GPUShaderStage.VERTEX, buffer: {type: "read-only-storage"}}
+        ]);
+
+        const makeImpostor = (name: string): GPURenderPipeline => {
+            const module = renderer.shaders.compile(name);
+
+            return renderer.pm.getRenderPipeline(name, {
+                layout: renderer.pm.getPipelineLayout(name, [sceneBGL, this.batchDataBGL]),
+                vertex: {
+                    module,
+                    entryPoint: "vs_main",
+                    buffers: [PBRPass.vertexLayout()]
+                },
+                fragment: {
+                    module,
+                    entryPoint: "fs_main",
+                    targets: [{format: renderer.gpu.format}]
+                },
+                primitive: {
+                    topology: "triangle-list",
+                    cullMode: "none"
+                },
+                multisample: {count: this.offscreen ? 1 : renderer.gpu.options.sampleCount},
+                depthStencil: {
+                    format: renderer.gpu.options.depthFormat,
+                    depthWriteEnabled: true,
+                    depthCompare: "less"
+                }
+            });
+        };
+
+        this.spherePipeline = makeImpostor("pbr-sphere");
+        this.cylinderPipeline = makeImpostor("pbr-cylinder");
 
         // ---- scene bindgroup ----
         const sceneUniformBuffer = renderer.scene?.sceneUniformBuffer;
@@ -235,7 +319,72 @@ export class PBRPass implements Pass {
             pass.drawIndexed(geometry.indexCount);
         }
 
+        // ---- 3. 实例化批次：一次 draw 画完整个批次 ----
+        this.drawBatches(pass);
+
         pass.end();
+    }
+
+    /**
+     * 绘制场景里的全部批次。
+     *
+     * GPU 批次（球/柱）：绑 scene + instances/visible，用 drawIndexedIndirect 只画可见实例；
+     * mesh 批次：保留 P1 的实例属性路径，用于回退与调试。
+     */
+    private drawBatches(pass: GPURenderPassEncoder): void {
+        const scene = this.renderer.scene;
+        if (!scene || scene.batches.length === 0) return;
+
+        pass.setBindGroup(0, this.sceneBindGroup);
+
+        let current: Nullable<GPURenderPipeline> = null;
+
+        for (const batch of scene.batches) {
+            if (!batch.visible || batch.count === 0) continue;
+
+            const geometry = batch.geometry;
+            const vertexBuffer = geometry.vertexBuffer;
+            const indexBuffer = geometry.indexBuffer;
+            if (!vertexBuffer || !indexBuffer) continue;
+
+            if (batch.gpuDriven) {
+                if (!batch.storageBuffer || !batch.visibleBuffer || !batch.argsBuffer) continue;
+
+                const pipeline = batch.kind === "sphere" ? this.spherePipeline : this.cylinderPipeline;
+
+                if (pipeline !== current) {
+                    pass.setPipeline(pipeline);
+                    current = pipeline;
+                }
+
+                const dataBG = this.renderer.bg.getOrCreate(
+                    this.batchDataBGL,
+                    [
+                        {binding: 0, resource: {buffer: batch.storageBuffer}},
+                        {binding: 1, resource: {buffer: batch.visibleBuffer}}
+                    ],
+                    `pbr-batch:${batch.name ?? "unnamed"}`
+                );
+
+                pass.setBindGroup(1, dataBG);
+                pass.setVertexBuffer(0, vertexBuffer);
+                pass.setIndexBuffer(indexBuffer, "uint32");
+                pass.drawIndexedIndirect(batch.argsBuffer, 0);
+                continue;
+            }
+
+            if (!batch.instanceBuffer) continue;
+
+            if (this.batchPipeline !== current) {
+                pass.setPipeline(this.batchPipeline);
+                current = this.batchPipeline;
+            }
+
+            pass.setVertexBuffer(0, vertexBuffer);
+            pass.setVertexBuffer(1, batch.instanceBuffer);
+            pass.setIndexBuffer(indexBuffer, "uint32");
+            pass.drawIndexed(geometry.indexCount, batch.count);
+        }
     }
 
     /**
@@ -304,6 +453,25 @@ export class PBRPass implements Pass {
         this.objectBindGroups.set(obj, bindGroup);
 
         return bindGroup;
+    }
+
+    /**
+     * 实例缓冲布局：16 floats 的 model + 4 floats 的 color + 1 个 u32 的 id + 3 个 pad。
+     * arrayStride = 96 B，与 Batch.BATCH_INSTANCE_BYTES 一致。
+     * */
+    private static instanceLayout(): GPUVertexBufferLayout {
+        return {
+            arrayStride: BATCH_INSTANCE_BYTES,
+            stepMode: "instance",
+            attributes: [
+                {shaderLocation: BATCH_ATTRIB_MODEL, offset: 0, format: "float32x4"},
+                {shaderLocation: BATCH_ATTRIB_MODEL + 1, offset: 16, format: "float32x4"},
+                {shaderLocation: BATCH_ATTRIB_MODEL + 2, offset: 32, format: "float32x4"},
+                {shaderLocation: BATCH_ATTRIB_MODEL + 3, offset: 48, format: "float32x4"},
+                {shaderLocation: BATCH_ATTRIB_COLOR, offset: 64, format: "float32x4"},
+                {shaderLocation: BATCH_ATTRIB_ID, offset: 80, format: "uint32"}
+            ]
+        };
     }
 
     /**

@@ -15,8 +15,14 @@
  * */
 import type { Pass, PassContext } from "../../gpu/PassManager";
 import { ATTRIB_NORMAL, ATTRIB_POSITION, INTERLEAVED_BYTES_PER_VERTEX, type Geometry } from "../Geometry";
-import type { Renderable } from "../Scene";
+import type { Renderable, Scene } from "../Scene";
+import type { Batch } from "../Batch";
 import type { Renderer } from "../Renderer";
+import {
+    BATCH_ATTRIB_ID,
+    BATCH_ATTRIB_MODEL,
+    BATCH_INSTANCE_BYTES
+} from "../Batch";
 import { Console, type Nullable } from "@wmv/common";
 import { t } from "../../locales";
 
@@ -99,14 +105,31 @@ export class PickingPass implements Pass {
 
     private readonly pipeline: GPURenderPipeline;
 
+    /** 实例化批次的拾取管线：id 来自实例属性，不需要 object bindgroup */
+    private readonly batchPipeline: GPURenderPipeline;
+
     /** 对象级 bindgroup 缓存，语义同 PBRPass */
     private readonly objectBindGroups = new WeakMap<Renderable, GPUBindGroup>();
 
     /** 1 像素回读缓冲。复用同一块：写 → mapAsync → 读 → unmap → 下次再用 */
     private readonly readbackBuffer: GPUBuffer;
 
+    /** 计算拾取：球实例 storage + scene + pick uniform + 结果 */
+    private readonly computePickBGL: GPUBindGroupLayout;
+    private readonly computeMinDepth: GPUComputePipeline;
+    private readonly computeMinIndex: GPUComputePipeline;
+    private readonly pickUniformBuffer: GPUBuffer;
+    private readonly pickResultBuffer: GPUBuffer;
+    private readonly pickReadBuffer: GPUBuffer;
+
+    /** 本帧是否走的计算拾取路径（决定 afterSubmit 读哪个缓冲） */
+    #computeReadback = false;
+
     /** 本帧已录制 copy、等待 afterSubmit 发起 mapAsync 的坐标（物理像素） */
     #pendingReadback: Nullable<{screenX: number; screenY: number}> = null;
+
+    /** 上一帧的渲染尺寸（物理像素），CPU 射线拾取用它把屏幕坐标转成 NDC */
+    #viewport: Nullable<{width: number; height: number}> = null;
 
 
     constructor(renderer: Renderer, options: PickingPassOptions) {
@@ -164,6 +187,33 @@ export class PickingPass implements Pass {
             }
         });
 
+        // ---- 批次拾取管线：r32uint 目标，id 从实例属性来 ----
+        const batchModule = renderer.shaders.compile("picking-batch");
+
+        this.batchPipeline = renderer.pm.getRenderPipeline("picking-batch", {
+            layout: renderer.pm.getPipelineLayout("picking-batch", [sceneBGL]),
+            vertex: {
+                module: batchModule,
+                entryPoint: "vs_main",
+                buffers: [PickingPass.vertexLayout(), PickingPass.instanceLayout()]
+            },
+            fragment: {
+                module: batchModule,
+                entryPoint: "fs_main",
+                targets: [{format: "r32uint"}]
+            },
+            primitive: {
+                topology: "triangle-list",
+                cullMode: "none"
+            },
+            multisample: {count: 1},
+            depthStencil: {
+                format: renderer.gpu.options.depthFormat,
+                depthWriteEnabled: true,
+                depthCompare: "less"
+            }
+        });
+
         // ---- scene bindgroup ----
         const sceneUniformBuffer = renderer.scene?.sceneUniformBuffer;
         if (!sceneUniformBuffer)
@@ -177,6 +227,34 @@ export class PickingPass implements Pass {
 
         // ---- 回读缓冲 ----
         this.readbackBuffer = renderer.rm.create("readback-buffer", PICK_READBACK_BYTES, "picking:readback");
+
+        // ---- 计算拾取：球实例 storage → 射线求交 → atomicMin ----
+        this.computePickBGL = renderer.pm.getBindGroupLayouts("pick-compute", [
+            {binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: {type: "read-only-storage"}},
+            {binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: {type: "uniform"}},
+            {binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: {type: "uniform"}},
+            {binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: {type: "storage"}}
+        ]);
+
+        const computeModule = renderer.shaders.compile("picking-compute");
+        const computeLayout = renderer.pm.getPipelineLayout("picking-compute", [this.computePickBGL]);
+
+        this.computeMinDepth = renderer.pm.getComputePipeline("picking-compute:depth", {
+            layout: computeLayout,
+            compute: {module: computeModule, entryPoint: "minDepth"}
+        });
+
+        this.computeMinIndex = renderer.pm.getComputePipeline("picking-compute:index", {
+            layout: computeLayout,
+            compute: {module: computeModule, entryPoint: "minIndex"}
+        });
+
+        this.pickUniformBuffer = renderer.rm.create("uniform-buffer", 48, "picking:compute-uniforms");
+        this.pickResultBuffer = renderer.rm.create("storage-buffer", 8, {
+            copySrc: true,
+            label: "picking:compute-result"
+        });
+        this.pickReadBuffer = renderer.rm.create("readback-buffer", 8, "picking:compute-readback");
     }
 
     get disposed(): boolean {
@@ -207,10 +285,86 @@ export class PickingPass implements Pass {
     requestPick(physicalX: number, physicalY: number): void {
         if (this.#disposed) return;
 
+        // P3：球批次在 CPU 侧有紧凑实例数据，直接做 O(N) 射线求交。
+        // 这样点击 → 选中的延迟是"一帧内的同步计算"（<1 ms），
+        // 不必等 GPU 计算 + 8 B 回读（实测在持续渲染时会被队列拖到 40 ms 量级）。
+        const scene = this.renderer.scene;
+        const camera = scene?.camera;
+        const batch = scene?.batches.find(item =>
+            item.kind === "sphere" && item.count > 0 && item.data.length > 0
+        );
+
+        const viewport = this.#viewport ?? {
+            width: this.renderer.gpu.width,
+            height: this.renderer.gpu.height
+        };
+
+        if (camera && batch && !batch.dynamic && viewport.width > 0) {
+            const id = this.pickCpu(camera, physicalX, physicalY, batch, viewport);
+
+            this.opts.onPick?.({id, screenX: physicalX, screenY: physicalY});
+
+            return;
+        }
+
         this.#pendingPick = {screenX: physicalX, screenY: physicalY};
     }
 
+    /**
+     * CPU 射线拾取：与 compute 版本同样的 ray-sphere 求交，但同步返回。
+     * 4HHB 4779 个原子约 0.05 ms；100k 约 1 ms，仍然远低于 GPU 回读的固定延迟。
+     */
+    private pickCpu(
+        camera: NonNullable<Scene["camera"]>,
+        screenX: number,
+        screenY: number,
+        batch: Batch,
+        viewport: { width: number; height: number }
+    ): number {
+        const ray = camera.screenToRay(screenX, screenY, viewport);
+        const [ox, oy, oz] = ray.origin;
+        const [dx, dy, dz] = ray.direction;
+
+        const data = batch.data;
+        const ids = new Uint32Array(data.buffer, data.byteOffset, data.length);
+
+        let best = Infinity;
+        let id = 0;
+
+        for (let i = 0; i < batch.count; i++) {
+            const o = i * 8;
+            const r = data[o + 3];
+
+            if (r <= 0) continue;
+
+            const cx = data[o];
+            const cy = data[o + 1];
+            const cz = data[o + 2];
+
+            const ocx = ox - cx;
+            const ocy = oy - cy;
+            const ocz = oz - cz;
+
+            const b = ocx * dx + ocy * dy + ocz * dz;
+            const c = ocx * ocx + ocy * ocy + ocz * ocz - r * r;
+            const h = b * b - c;
+
+            if (h < 0) continue;
+
+            const t = -b - Math.sqrt(h);
+
+            if (t > 0 && t < best) {
+                best = t;
+                id = ids[o + 5];
+            }
+        }
+
+        return id;
+    }
+
     execute(ctx: PassContext): void {
+        this.#viewport = {width: ctx.frame.width, height: ctx.frame.height};
+
         const pick = this.#pendingPick;
         if (!pick) return;
 
@@ -230,7 +384,18 @@ export class PickingPass implements Pass {
             return;
         }
 
-        // ---- 2. 把 objectId 画到 pick 纹理 ----
+        // ---- 2. GPU 批次优先走计算拾取（P3）：不重绘场景，只做射线 vs 球 ----
+        const sphereBatch = scene.batches.find(batch =>
+            batch.kind === "sphere" && batch.gpuDriven && batch.count > 0 && !!batch.storageBuffer
+        );
+
+        if (sphereBatch) {
+            this.executeComputePick(ctx, sphereBatch, physX, physY, pick);
+
+            return;
+        }
+
+        // ---- 3. 回退：把 objectId 画到 pick 纹理（mesh 批次 / 自定义 Renderable） ----
         const pass = ctx.beginRenderPass({
             colorAttachments: [{
                 view: ctx.getTexture(this.opts.textureName),
@@ -270,6 +435,9 @@ export class PickingPass implements Pass {
             pass.drawIndexed(geometry.indexCount);
         }
 
+        // ---- 3. 批次：一次 draw 把每个实例的 id 写进 pick 纹理 ----
+        this.drawBatches(pass);
+
         pass.end();
 
         // ---- 3. 复制被点击的那 1 个像素到回读缓冲 ----
@@ -304,7 +472,86 @@ export class PickingPass implements Pass {
 
         this.#pendingReadback = null;
 
-        this.readback(pending.screenX, pending.screenY);
+        if (this.#computeReadback)
+            this.readbackCompute(pending.screenX, pending.screenY);
+        else
+            this.readback(pending.screenX, pending.screenY);
+    }
+
+    /**
+     * 计算拾取：对球实例做屏幕射线求交，atomicMin 取最近命中。
+     * 不重绘场景，也不碰 pick 纹理 / 深度纹理。
+     */
+    private executeComputePick(
+        ctx: PassContext,
+        batch: Batch,
+        physX: number,
+        physY: number,
+        pick: PendingPick
+    ): void {
+        const sceneUniformBuffer = this.renderer.scene?.sceneUniformBuffer;
+        if (!sceneUniformBuffer || !batch.storageBuffer) return;
+
+        // 32 B uniform：[click.xy, screen.xy, count(u32), pad×3]
+        const data = new ArrayBuffer(48);
+        const f = new Float32Array(data);
+        f[0] = physX;
+        f[1] = physY;
+        f[2] = ctx.frame.width;
+        f[3] = ctx.frame.height;
+        new Uint32Array(data, 16, 1)[0] = batch.count;
+
+        this.renderer.rm.writeBuffer(this.pickUniformBuffer, data);
+        this.renderer.rm.writeBuffer(this.pickResultBuffer, new Uint32Array([0xffffffff, 0xffffffff]));
+
+        const bindGroup = this.renderer.bg.getOrCreate(
+            this.computePickBGL,
+            [
+                {binding: 0, resource: {buffer: batch.storageBuffer}},
+                {binding: 1, resource: {buffer: sceneUniformBuffer}},
+                {binding: 2, resource: {buffer: this.pickUniformBuffer}},
+                {binding: 3, resource: {buffer: this.pickResultBuffer}}
+            ],
+            `pick-compute:${batch.name ?? "unnamed"}`
+        );
+
+        const groups = Math.ceil(batch.count / 64);
+        const pass = ctx.beginComputePass();
+        pass.setBindGroup(0, bindGroup);
+        pass.setPipeline(this.computeMinDepth);
+        pass.dispatchWorkgroups(groups);
+        pass.setPipeline(this.computeMinIndex);
+        pass.dispatchWorkgroups(groups);
+        pass.end();
+
+        ctx.encoder.copyBufferToBuffer(this.pickResultBuffer, 0, this.pickReadBuffer, 0, 8);
+
+        this.#computeReadback = true;
+        this.#pendingReadback = {screenX: pick.screenX, screenY: pick.screenY};
+    }
+
+    /** 计算拾取的回读：8 B 里第 2 个 u32 是 objectId（0xffffffff = 未命中） */
+    private readbackCompute(screenX: number, screenY: number): void {
+        this.#readbackInFlight = true;
+        this.#computeReadback = false;
+
+        this.pickReadBuffer
+            .mapAsync(GPUMapMode.READ)
+            .then(() => {
+                const result = new Uint32Array(this.pickReadBuffer.getMappedRange().slice(0));
+
+                this.pickReadBuffer.unmap();
+
+                const id = result[1] === 0xffffffff ? 0 : result[1];
+
+                this.opts.onPick?.({id, screenX, screenY});
+            })
+            .catch((err: unknown) => {
+                Console.error(t("PickingPass.readback.error_1", {err: String(err)}));
+            })
+            .finally(() => {
+                this.#readbackInFlight = false;
+            });
     }
 
     dispose(): void {
@@ -314,6 +561,9 @@ export class PickingPass implements Pass {
         this.#pendingPick = null;
 
         this.renderer.rm.destroy(this.readbackBuffer);
+        this.renderer.rm.destroy(this.pickUniformBuffer);
+        this.renderer.rm.destroy(this.pickResultBuffer);
+        this.renderer.rm.destroy(this.pickReadBuffer);
     }
 
     /**
@@ -365,6 +615,51 @@ export class PickingPass implements Pass {
     }
 
     /**
+     * 绘制批次。每个批次一次 draw，id 由实例数据自带（location 7）。
+     * 键批次的 id 为 0，因此只会"遮住"后面的原子，不会被选中。
+     */
+    private drawBatches(pass: GPURenderPassEncoder): void {
+        const scene = this.renderer.scene;
+        if (!scene || scene.batches.length === 0) return;
+
+        pass.setPipeline(this.batchPipeline);
+        pass.setBindGroup(0, this.sceneBindGroup);
+
+        for (const batch of scene.batches) {
+            if (!batch.visible || batch.count === 0) continue;
+
+            // impostor 批次的绘制几何是 quad；拾取用 pickGeometry（单位球/柱网格）
+            const geometry = batch.pickGeometry ?? batch.geometry;
+            const vertexBuffer = geometry.vertexBuffer;
+            const indexBuffer = geometry.indexBuffer;
+            if (!vertexBuffer || !indexBuffer || !batch.instanceBuffer) continue;
+
+            pass.setVertexBuffer(0, vertexBuffer);
+            pass.setVertexBuffer(1, batch.instanceBuffer);
+            pass.setIndexBuffer(indexBuffer, "uint32");
+            pass.drawIndexed(geometry.indexCount, batch.count);
+        }
+    }
+
+    /**
+     * 实例缓冲布局（与 PBRPass 一致）：model 4xvec4 + color vec4 + id u32 + pad。
+     * */
+    private static instanceLayout(): GPUVertexBufferLayout {
+        return {
+            arrayStride: BATCH_INSTANCE_BYTES,
+            stepMode: "instance",
+            attributes: [
+                {shaderLocation: BATCH_ATTRIB_MODEL, offset: 0, format: "float32x4"},
+                {shaderLocation: BATCH_ATTRIB_MODEL + 1, offset: 16, format: "float32x4"},
+                {shaderLocation: BATCH_ATTRIB_MODEL + 2, offset: 32, format: "float32x4"},
+                {shaderLocation: BATCH_ATTRIB_MODEL + 3, offset: 48, format: "float32x4"},
+                {shaderLocation: 6, offset: 64, format: "float32x4"},
+                {shaderLocation: BATCH_ATTRIB_ID, offset: 80, format: "uint32"}
+            ]
+        };
+    }
+
+    /**
      * Geometry 的默认交错顶点布局，与 PBRPass 保持一致
      * （picking.wgsl 的 VertexInput 与 pbr.wgsl 同布局）。
      * */
@@ -378,3 +673,7 @@ export class PickingPass implements Pass {
         };
     }
 }
+
+
+
+

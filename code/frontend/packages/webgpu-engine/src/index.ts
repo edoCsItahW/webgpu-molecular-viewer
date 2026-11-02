@@ -34,6 +34,18 @@ export { OrbitCamera } from "./render/OrbitCamera";
 export type { OrbitCameraOptions } from "./render/OrbitCamera";
 export { Mesh } from "./render/Mesh";
 export type { MeshOptions } from "./render/Mesh";
+export { Batch, packColor } from "./render/Batch";
+export type { BatchOptions, BatchKind } from "./render/Batch";
+export {
+    BATCH_INSTANCE_FLOATS,
+    BATCH_INSTANCE_BYTES,
+    BATCH_MODEL_OFFSET,
+    BATCH_COLOR_OFFSET,
+    BATCH_ID_OFFSET,
+    BATCH_ATTRIB_MODEL,
+    BATCH_ATTRIB_COLOR,
+    BATCH_ATTRIB_ID
+} from "./render/Batch";
 export { Geometry } from "./render/Geometry";
 export type { Bounds } from "./render/Geometry";
 export { Material } from "./render/Material";
@@ -42,4 +54,8 @@ export { Light, DirectionalLight, AmbientLight, HemisphereLight } from "./render
 export type { LightBase } from "./render/Light";
 export { SphereGeometry } from "./render/geometry/SphereGeometry";
 export { CylinderGeometry } from "./render/geometry/CylinderGeometry";
+export { QuadGeometry } from "./render/geometry/QuadGeometry";
 export type { FrameStats } from "./render/FrameStats";
+export { GpuMd, createGpuMd } from "./simulation/GpuMd";
+export type { GpuMdOptions } from "./simulation/GpuMd";
+
