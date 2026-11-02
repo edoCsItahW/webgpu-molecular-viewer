@@ -25,6 +25,11 @@ export default createRouter({
             path: '/',
             name: 'MVMainView',
             component: MVMainView
+        },
+        {
+            path: '/showcase',
+            name: 'MVShowcaseView',
+            component: () => import('@/views/MV-ShowcaseView.vue')
         }
     ]
 });

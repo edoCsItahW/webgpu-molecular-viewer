@@ -55,7 +55,9 @@ type IconName =
     | 'reset'
     | 'sun'
     | 'moon'
-    | 'auto';
+    | 'auto'
+    | 'share'
+    | 'camera';
 
 const props = defineProps<{
     /** 图标名称 */
@@ -99,6 +101,17 @@ const catalog: Record<IconName, string[]> = {
         'M8 1.4v1.8M8 12.8v1.8M1.4 8h1.8M12.8 8h1.8M3.4 3.4l1.3 1.3M11.3 11.3l1.3 1.3M12.6 3.4l-1.3 1.3M4.7 11.3l-1.3 1.3'
     ],
     moon: ['M13.2 9.8A5.6 5.6 0 0 1 6.2 2.8a5.6 5.6 0 1 0 7 7z'],
+    share: [
+        'M5.2 8.6 10.8 11.4',
+        'M5.2 7.4 10.8 4.6',
+        'M3.8 9.6a1.6 1.6 0 1 0 0-3.2 1.6 1.6 0 0 0 0 3.2z',
+        'M12.2 5.8a1.6 1.6 0 1 0 0-3.2 1.6 1.6 0 0 0 0 3.2z',
+        'M12.2 13.4a1.6 1.6 0 1 0 0-3.2 1.6 1.6 0 0 0 0 3.2z'
+    ],
+    camera: [
+        'M2.6 5.4h2.5l1-1.6h3.8l1 1.6h2.5v7.2H2.6z',
+        'M8 6.9a2.3 2.3 0 1 0 0 4.6 2.3 2.3 0 0 0 0-4.6z'
+    ],
     auto: ['M1.8 3.2h12.4v9.6H1.8z', 'M1.8 6.4h12.4']
 };
 
@@ -117,3 +130,4 @@ const paths = computed(() => catalog[props.name] ?? []);
     stroke-linecap: round
     stroke-linejoin: round
 </style>
+

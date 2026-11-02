@@ -32,7 +32,7 @@
  * */
 import MvAppIcon from './MV-AppIcon.vue';
 
-type IconName = 'upload' | 'fit' | 'target' | 'rotate' | 'pan' | 'pick' | 'measure' | 'grid' | 'play' | 'step' | 'reset';
+type IconName = 'upload' | 'fit' | 'target' | 'rotate' | 'pan' | 'pick' | 'measure' | 'grid' | 'play' | 'step' | 'reset' | 'share' | 'camera';
 
 const props = withDefaults(defineProps<{
     /** 图标名 */
@@ -83,3 +83,4 @@ function onClick(e: MouseEvent) {
         opacity: .5
         cursor: not-allowed
 </style>
+
