@@ -36,6 +36,8 @@ export default {
     topbar: {
         importStructure: "导入结构",
         fitView: "适应视图",
+        share: "复制分享链接",
+        screenshot: "导出 PNG 截图",
         themeAria: "主题切换",
         doc: {
             ariaLabel: "结构元信息",
@@ -62,6 +64,8 @@ export default {
             peptide: "多肽链 {id}",
             water: "水分子",
             unknown: "未知链",
+            visibility: "切换可见性",
+            ligands: {title: "配体"},
             empty: "暂无链数据"
         },
         legend: {
@@ -156,7 +160,11 @@ export default {
                 ssao: "环境光遮蔽 SSAO",
                 outline: "轮廓描边",
                 grid: "坐标网格",
-                hydrogens: "氢原子"
+                hydrogens: "氢原子",
+                waters: "水分子",
+                ligands: "配体",
+                sidechains: "侧链",
+                labels: "注释标签"
             },
             radius: {
                 title: "原子半径缩放",
@@ -180,6 +188,11 @@ export default {
                 reset: "重置",
                 steps: "{count} steps"
             },
+            timeline: {
+                title: "时间线",
+                speed: "速度（步/帧）",
+                loop: "循环播放"
+            },
             params: {
                 title: "参数",
                 integrator: "Velocity-Verlet",
@@ -198,6 +211,26 @@ export default {
             }
         }
     },
+    library: {
+        title: "示例库",
+        search: "搜索示例、标签…",
+        empty: "没有匹配的示例",
+        loading: "正在加载…",
+        close: "关闭",
+        all: "全部",
+        protein: "蛋白",
+        complex: "蛋白 + 配体",
+        small: "小分子"
+    },
+    measure: {
+        distance: "距离",
+        angle: "角度",
+        dihedral: "二面角",
+        pickTwo: "测距：点击两个原子",
+        pickThree: "测角：点击三个原子（第二个为顶点）",
+        pickFour: "二面角：点击四个原子（中间两个定义轴）",
+        need: "再点 {n} 个原子"
+    },
     statusbar: {
         format: "PDB",
         summary: "{atoms} atoms · {bonds} bonds · {residues} residues",
@@ -211,3 +244,13 @@ export default {
         }
     }
 } as const;
+
+
+
+
+
+
+
+
+
+

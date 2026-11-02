@@ -13,13 +13,13 @@
             <!-- WebGPU canvas（引擎未接入前为空，仅占位以保持唯一视口契约 ui.md §五） -->
             <canvas ref="canvasRef" class="mev-canvas" />
 
-            <!-- 静态 SVG 占位：引擎未就绪或 WebGPU 不可用时显示示意分子结构 -->
+            <!-- 静态 SVG 占位：引擎完全未就绪时显示示意分子结构 -->
             <svg
-                v-if="!engineReady || !webgpuAvailable"
+                v-if="!engineReady"
                 class="mev-molecule"
                 viewBox="0 0 600 400"
                 preserveAspectRatio="xMidYMid meet"
-                :aria-label="webgpuAvailable ? '分子结构加载中' : 'WebGPU 不可用，显示静态占位'"
+                :aria-label="engineReady ? '分子结构加载中' : 'WebGPU 不可用，显示静态占位'"
             >
                 <defs>
                     <radialGradient id="mev-gC" cx="34%" cy="28%" r="78%">
@@ -76,6 +76,11 @@
             </svg>
         </div>
 
+        <div v-if="engineReady && !webgpuAvailable" class="mev-backend-badge">
+            <span class="mev-backend-dot" />
+            WebGL2 兼容模式 · 无 GPU 计算
+        </div>
+
         <!-- 浮层插槽：MoleculeViewer 在这里挂四角的 Toolbar/HUD/Gizmo/ScaleBar -->
         <slot />
     </div>
@@ -87,32 +92,38 @@
  * @author edocsitahw
  * @version 1.1
  * @date 2026/09/27 16:40
- * @desc 引擎视口容器。绑定 canvas 到 WebGPU Renderer，引擎就绪后渲染真实 3D 分子；
- *       未就绪或浏览器不支持 WebGPU 时显示 SVG 示意占位。GPU 对象由 useEngine 持有，
+ * @desc 引擎视口容器。绑定 canvas 到 WebGPU Renderer；WebGPU 不可用时由 useEngine 切换 WebGL2；
+ *       两者都不可用时显示 SVG 示意占位。GPU 对象由 useEngine 持有，
  *       通过 provide 透传给子组件（HUD / Gizmo 等），绝不进 Pinia（ui.md §六）。
  * @copyright CC BY-NC-SA
  * */
 import { onMounted, provide, ref, shallowRef } from 'vue';
 import { ENGINE_KEY, type EngineContext } from '@/utils/constants';
-import { useEngine, type EngineHandle } from '@/composables/useEngine';
+import { useEngine, type CameraPose, type EngineHandle } from '@/composables/useEngine';
 
 const canvasRef = ref<HTMLCanvasElement | null>(null);
 const handle = shallowRef<EngineHandle | null>(null);
 
 const engineReady = ref(false);
 const webgpuAvailable = ref(true);
+const webgl2Available = ref(false);
+const backend = ref<'webgpu' | 'webgl2' | 'none'>('none');
 const metrics = ref({ fps: '0.0', ms: '0.00', inst: '0' });
 
 onMounted(() => {
     handle.value = useEngine(canvasRef, (h) => {
         engineReady.value = h.ready.value;
         webgpuAvailable.value = h.webgpuAvailable.value;
+        webgl2Available.value = h.webgl2Available.value;
+        backend.value = h.backend.value;
     });
 
     // 响应式同步 ready / metrics 到本地 ref，供模板与 provide 使用
     if (handle.value) {
         engineReady.value = handle.value.ready.value;
         webgpuAvailable.value = handle.value.webgpuAvailable.value;
+        webgl2Available.value = handle.value.webgl2Available.value;
+        backend.value = handle.value.backend.value;
     }
 });
 
@@ -121,6 +132,8 @@ function syncMetrics() {
     if (handle.value) {
         engineReady.value = handle.value.ready.value;
         webgpuAvailable.value = handle.value.webgpuAvailable.value;
+        webgl2Available.value = handle.value.webgl2Available.value;
+        backend.value = handle.value.backend.value;
         metrics.value = handle.value.metrics.value;
     }
     requestAnimationFrame(syncMetrics);
@@ -134,10 +147,16 @@ defineExpose({
     canvasRef,
     engineReady,
     webgpuAvailable,
+    webgl2Available,
+    backend,
     metrics,
     fit: () => handle.value?.fit(),
     toggleGrid: () => handle.value?.toggleGrid(),
     toggleHydrogens: () => handle.value?.toggleHydrogens(),
+    cameraPose: () => handle.value?.cameraPose(),
+    setCameraPose: (pose: CameraPose) => handle.value?.setCameraPose(pose),
+    animateCameraPose: (pose: CameraPose, durationMs?: number) => handle.value?.animateCameraPose(pose, durationMs),
+    projectPoint: (position: readonly [number, number, number]) => handle.value?.projectPoint(position),
 });
 </script>
 
@@ -201,4 +220,32 @@ defineExpose({
 .mev-atom
     stroke: var(--atom-stroke)
     stroke-width: 1
+
+.mev-backend-badge
+    position: absolute
+    left: 50%
+    bottom: 14px
+    transform: translateX(-50%)
+    display: inline-flex
+    align-items: center
+    gap: 7px
+    padding: 5px 10px
+    border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent)
+    border-radius: 999px
+    background: color-mix(in srgb, var(--bg-panel) 82%, transparent)
+    backdrop-filter: blur(10px)
+    color: var(--text-dim)
+    font-size: 11px
+    letter-spacing: 0.02em
+    pointer-events: none
+    z-index: 3
+
+.mev-backend-dot
+    width: 6px
+    height: 6px
+    border-radius: 50%
+    background: var(--accent)
+    box-shadow: 0 0 8px var(--accent)
 </style>
+
+

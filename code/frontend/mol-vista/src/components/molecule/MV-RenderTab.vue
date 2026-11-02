@@ -9,6 +9,10 @@
 
 <template>
     <div class="mv-render-tab">
+        <div v-if="store.engineBackend === 'webgl2'" class="mrt-compat-note">
+            WebGL2 兼容模式：基础光照可用，SSAO / 描边 / 网格不启用。
+        </div>
+
         <!-- 显示模式 -->
         <mv-panel-section :title="t('inspector.render.displayMode')">
             <mv-segmented-control v-model="displayMode" :options="displayModeOptions" />
@@ -21,10 +25,16 @@
 
         <!-- 画质开关 -->
         <mv-panel-section :title="t('inspector.render.quality')">
-            <mv-toggle-row v-model="showSsao" :label="t('inspector.render.qualityToggles.ssao')" />
-            <mv-toggle-row v-model="showOutline" :label="t('inspector.render.qualityToggles.outline')" />
-            <mv-toggle-row v-model="showGrid" :label="t('inspector.render.qualityToggles.grid')" />
+            <template v-if="store.engineBackend !== 'webgl2'">
+                <mv-toggle-row v-model="showSsao" :label="t('inspector.render.qualityToggles.ssao')" />
+                <mv-toggle-row v-model="showOutline" :label="t('inspector.render.qualityToggles.outline')" />
+                <mv-toggle-row v-model="showGrid" :label="t('inspector.render.qualityToggles.grid')" />
+            </template>
             <mv-toggle-row v-model="showHydrogens" :label="t('inspector.render.qualityToggles.hydrogens')" />
+            <mv-toggle-row v-model="showWaters" :label="t('inspector.render.qualityToggles.waters')" />
+            <mv-toggle-row v-model="showLigands" :label="t('inspector.render.qualityToggles.ligands')" />
+            <mv-toggle-row v-model="showSidechains" :label="t('inspector.render.qualityToggles.sidechains')" />
+            <mv-toggle-row v-model="showLabels" :label="t('inspector.render.qualityToggles.labels')" />
         </mv-panel-section>
 
         <!-- 原子半径缩放 -->
@@ -72,8 +82,8 @@ const store = useMoleculeStore();
  * 能力探测：缺数据的功能必须"禁用 + 说明原因"，而不是让它看起来能用却没效果。
  * 演示数据既没有电荷列也没有二级结构；接入解析器后这里会自然变成数据驱动（docs/architecture/04 §6）。
  */
-const hasCharges = computed(() => store.atoms.some((a) => typeof a.charge === 'number'));
-const hasSecondaryStructure = computed(() => false);
+const hasCharges = computed(() => !!store.structure?.atoms.charge);
+const hasSecondaryStructure = computed(() => !!store.structure?.ss);
 
 const displayModeOptions = computed(() => ([
     { value: 'ballStick' as DisplayMode, label: t('inspector.render.displayModes.ballStick') },
@@ -134,6 +144,26 @@ const showHydrogens = computed({
     set: () => store.toggleHydrogens(),
 });
 
+const showWaters = computed({
+    get: () => store.showWaters,
+    set: (v: boolean) => { store.showWaters = v; },
+});
+
+const showLigands = computed({
+    get: () => store.showLigands,
+    set: (v: boolean) => { store.showLigands = v; },
+});
+
+const showSidechains = computed({
+    get: () => store.showSidechains,
+    set: (v: boolean) => { store.showSidechains = v; },
+});
+
+const showLabels = computed({
+    get: () => store.showLabels,
+    set: (v: boolean) => { store.showLabels = v; },
+});
+
 const ballRadiusScale = computed({
     get: () => store.ballRadiusScale,
     set: (v) => store.setBallRadius(v),
@@ -144,3 +174,17 @@ const bondRadiusScale = computed({
     set: (v) => store.setBondRadius(v),
 });
 </script>
+
+<style lang="sass" scoped>
+@use '@/assets/styles/mixins' as *
+
+.mrt-compat-note
+    padding: 9px 11px
+    border: 1px solid color-mix(in srgb, #f0b25a 28%, transparent)
+    border-radius: 8px
+    background: color-mix(in srgb, #f0b25a 8%, transparent)
+    color: #d8b47a
+    font-size: 11px
+    line-height: 1.55
+</style>
+

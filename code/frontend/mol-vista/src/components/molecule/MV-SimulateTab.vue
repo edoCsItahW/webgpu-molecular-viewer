@@ -9,6 +9,10 @@
 
 <template>
     <div class="mv-simulate-tab">
+        <div v-if="store.engineBackend === 'webgl2'" class="mst-compat-note">
+            WebGL2 兼容模式：GPU MD 与能量回读不可用，切回支持 WebGPU 的浏览器即可启用。
+        </div>
+
         <!-- 传输控制 -->
         <mv-panel-section :title="t('inspector.simulate.md.title')">
             <div class="mst-status">
@@ -19,6 +23,7 @@
                 <button
                     v-if="store.simStatus !== 'running'"
                     class="mst-btn mst-btn-primary"
+                    :disabled="store.engineBackend === 'webgl2'"
                     @click="store.play()"
                 >
                     {{ t('inspector.simulate.transport.play') }}
@@ -30,7 +35,7 @@
                 >
                     {{ t('inspector.simulate.transport.pause') }}
                 </button>
-                <button class="mst-btn" @click="store.step()">
+                <button class="mst-btn" :disabled="store.engineBackend === 'webgl2'" @click="store.step()">
                     {{ t('inspector.simulate.transport.step') }}
                 </button>
                 <button class="mst-btn" @click="store.reset()">
@@ -40,6 +45,32 @@
             <div class="mst-step-count">
                 {{ t('inspector.simulate.transport.steps', { count: store.simStep }) }}
             </div>
+        </mv-panel-section>
+
+        <!-- 时间线 -->
+        <mv-panel-section :title="t('inspector.simulate.timeline.title')">
+            <input
+                class="mst-timeline"
+                type="range"
+                min="0"
+                :disabled="store.engineBackend === 'webgl2'"
+                :max="store.simHorizon"
+                :value="Math.min(store.simStep, store.simHorizon)"
+                @input="onSeek"
+            >
+            <div class="mst-timeline-meta mono">
+                <span>{{ Math.min(store.simStep, store.simHorizon) }} / {{ store.simHorizon }}</span>
+                <span>{{ ((Math.min(store.simStep, store.simHorizon) * store.simParams.timestep) / 1000).toFixed(2) }} ps</span>
+            </div>
+            <mv-slider-row
+                v-model="speed"
+                :label="t('inspector.simulate.timeline.speed')"
+                :min="1"
+                :max="8"
+                :step="1"
+                :format="(v) => `${v} ×`"
+            />
+            <mv-toggle-row v-model="loop" :label="t('inspector.simulate.timeline.loop')" />
         </mv-panel-section>
 
         <!-- 参数 -->
@@ -100,6 +131,7 @@ import { useI18n } from 'vue-i18n';
 import MvPanelSection from '@/components/base/MV-PanelSection.vue';
 import MvSliderRow from '@/components/base/MV-SliderRow.vue';
 import MvStatList from '@/components/base/MV-StatList.vue';
+import MvToggleRow from '@/components/base/MV-ToggleRow.vue';
 import { useMoleculeStore } from '@/stores/molecule.store';
 
 const { t } = useI18n();
@@ -113,6 +145,20 @@ const statusLabel = computed(() => {
     } as const;
     return map[store.simStatus];
 });
+
+const speed = computed({
+    get: () => store.simSpeed,
+    set: (v) => { store.simSpeed = v; },
+});
+
+const loop = computed({
+    get: () => store.simLoop,
+    set: (v) => { store.simLoop = v; },
+});
+
+function onSeek(event: Event): void {
+    store.requestSeek(Number((event.target as HTMLInputElement).value));
+}
 
 const temperature = computed({
     get: () => store.simParams.temperature,
@@ -144,6 +190,15 @@ const energyRows = computed(() => [
 
 <style lang="sass" scoped>
 @use '@/assets/styles/mixins' as *
+
+.mst-compat-note
+    padding: 9px 11px
+    border: 1px solid color-mix(in srgb, #f0b25a 28%, transparent)
+    border-radius: 8px
+    background: color-mix(in srgb, #f0b25a 8%, transparent)
+    color: #d8b47a
+    font-size: 11px
+    line-height: 1.55
 
 .mst-status
     display: flex
@@ -200,4 +255,20 @@ const energyRows = computed(() => [
     font-family: var(--font-mono)
     color: var(--fg-faint)
     text-align: center
+
+.mst-timeline
+    width: 100%
+    margin: 4px 0 6px
+    accent-color: var(--accent)
+
+.mst-timeline-meta
+    display: flex
+    justify-content: space-between
+    margin-bottom: 8px
+    font-size: 9.5px
+    color: var(--fg-faint)
 </style>
+
+
+
+
