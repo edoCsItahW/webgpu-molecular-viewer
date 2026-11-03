@@ -23,10 +23,6 @@
             <span class="msb-led" :class="{ 'is-off': !webgpuReady }" />
             {{ capabilityLabel }}
         </span>
-        <span class="msb-sep" />
-        <span class="mono">{{ fpsLabel }}</span>
-        <span class="msb-sep" />
-        <span class="mono">{{ msLabel }}</span>
     </footer>
 </template>
 
@@ -44,29 +40,26 @@
  * */
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useMoleculeStore } from '@/stores/molecule.store';
 
 const { t } = useI18n();
+const store = useMoleculeStore();
 
-// 占位数据 —— Workbench 接入后替换为 props
-const docName = '1crn.pdb';
-const format = t('statusbar.format');
-const atomCount = 327;
-const bondCount = 334;
-const residueCount = 46;
+const docName = computed(() => store.name || '未加载结构');
+const format = computed(() => (store.structure?.meta.sourceFormat ?? '—').toUpperCase());
 const webgpuReady = true;
-const fps = 60;
-const cpuMs = 0.42;
 
 const summary = computed(() =>
-    t('statusbar.summary', { atoms: atomCount, bonds: bondCount, residues: residueCount })
+    t('statusbar.summary', {
+        atoms: store.atomCount,
+        bonds: store.bondCount,
+        residues: store.residueCount,
+    })
 );
 
 const capabilityLabel = computed(() =>
     webgpuReady ? t('statusbar.capability.ready') : t('statusbar.capability.unavailable')
 );
-
-const fpsLabel = computed(() => `${fps.toFixed(1)} ${t('statusbar.perf.fps')}`);
-const msLabel = computed(() => `${cpuMs.toFixed(2)} ${t('statusbar.perf.ms')}`);
 </script>
 
 <style lang="sass" scoped>
@@ -77,7 +70,7 @@ const msLabel = computed(() => `${cpuMs.toFixed(2)} ${t('statusbar.perf.ms')}`);
     align-items: center
     gap: 10px
     padding: 0 12px
-    height: 26px
+    height: 24px
     flex: none
     background: var(--bg-panel)
     border-top: 1px solid var(--line)
@@ -112,3 +105,4 @@ const msLabel = computed(() => `${cpuMs.toFixed(2)} ${t('statusbar.perf.ms')}`);
         background: var(--warn)
         box-shadow: 0 0 0 3px color-mix(in srgb, var(--warn) 18%, transparent)
 </style>
+

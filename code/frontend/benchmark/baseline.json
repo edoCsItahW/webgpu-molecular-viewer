@@ -1,0 +1,12 @@
+{
+  "source": "docs/architecture/09-第二轮迭代设计.s.md + 08-渲染与绘制架构优化方案.s.md",
+  "capturedAt": "2026-10",
+  "note": "历史数据来自同一台 RTX 3060 Laptop / i9-12900H；当时的帧率部分为应用 HUD/非 vsync 口径，和本框架的 rAF 口径不可完全横比。",
+  "metrics": {
+    "parser.4hhb.medianMs": 13,
+    "parser.5a9z.medianMs": 462,
+    "load.5a9z.totalMs": 634,
+    "render.4hhb.ballStick.fps": 165,
+    "md.4hhb.speed2.stepsPerSec": 100
+  }
+}

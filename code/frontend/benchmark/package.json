@@ -1,0 +1,10 @@
+{
+    "name": "@wmv/benchmark",
+    "private": true,
+    "version": "1.0.0",
+    "type": "module",
+    "scripts": {
+        "bench": "node cli.mjs --scenario all",
+        "bench:quick": "node cli.mjs --scenario load,render --no-screenshots"
+    }
+}

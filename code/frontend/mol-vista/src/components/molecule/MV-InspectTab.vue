@@ -10,7 +10,7 @@
 <template>
     <div class="mv-inspect-tab">
         <!-- 选中原子卡片 -->
-        <mv-panel-section v-if="atom" :title="t('inspector.atomCard.atomNumber', { id: atom.id })">
+        <mv-panel-section v-if="atom" :title="t('inspector.atomCard.atomNumber', { id: atom.index + 1 })">
             <mv-key-value-list :rows="atomRows" />
             <button class="mit-focus-btn" @click="onFocus">
                 {{ t('inspector.atomCard.focusAtom') }}
@@ -51,27 +51,38 @@ const atomRows = computed(() => {
     if (!atom.value) return [];
     const a = atom.value;
     return [
-        { key: t('inspector.atomCard.residue'), value: a.residue ?? '—' },
-        { key: t('inspector.atomCard.chain'), value: a.chain ?? '—' },
+        { key: t('inspector.atomCard.residue'), value: a.residueName || '—' },
+        { key: t('inspector.atomCard.chain'), value: a.chainId || '—' },
         { key: t('inspector.coord.x'), value: a.position[0].toFixed(3), mono: true },
         { key: t('inspector.coord.y'), value: a.position[1].toFixed(3), mono: true },
         { key: t('inspector.coord.z'), value: a.position[2].toFixed(3), mono: true },
-        { key: t('inspector.atomCard.bfactor'), value: (a.bfactor ?? 0).toFixed(2), mono: true },
-        { key: t('inspector.atomCard.occupancy'), value: (a.occupancy ?? 1).toFixed(2), mono: true },
-        { key: t('inspector.atomCard.partialCharge'), value: (a.charge ?? 0).toFixed(3), mono: true },
+        { key: t('inspector.atomCard.bfactor'), value: a.bFactor.toFixed(2), mono: true },
+        { key: t('inspector.atomCard.occupancy'), value: a.occupancy.toFixed(2), mono: true },
+        { key: t('inspector.atomCard.partialCharge'), value: a.charge.toFixed(3), mono: true },
     ];
+});
+
+const netCharge = computed(() => {
+    const charge = store.structure?.atoms.charge;
+    if (!charge) return 0;
+
+    let total = 0;
+
+    for (let i = 0; i < charge.length; i++) total += charge[i]!;
+
+    return total;
 });
 
 const statsRows = computed(() => [
     { label: t('inspector.stats.atoms'), value: store.atomCount },
     { label: t('inspector.stats.bonds'), value: store.bondCount },
     { label: t('inspector.stats.residues'), value: store.residueCount },
-    { label: t('inspector.stats.netCharge'), value: '0' },
+    { label: t('inspector.stats.netCharge'), value: netCharge.value.toFixed(0) },
     { label: t('inspector.stats.mass'), value: `${store.mass.toFixed(1)} u` },
 ]);
 
 function onFocus() {
-    // TODO: 引擎拾取后，调用 engine.focusAtom(atom.id)
+    // TODO: 引擎拾取后，调用 engine.focusAtom(atom.index)
 }
 </script>
 

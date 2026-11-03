@@ -57,21 +57,62 @@
                     <span class="masp-meta mono">{{ $t('structure.chains.count', { shown: chainsShown, total: chainsTotal }) }}</span>
                 </template>
                 <div v-if="chains.length" class="masp-chain-list">
-                    <button
-                        v-for="c in chains"
-                        :key="c.id"
-                        type="button"
-                        class="masp-chain-row"
-                        :class="{ 'is-active': c.active }"
-                        @click="toggleChain(c.id)"
-                    >
-                        <span class="masp-chain-chip" :style="{ '--c': c.color }">{{ c.id }}</span>
-                        <span class="masp-chain-name">{{ c.name }}</span>
-                        <span class="masp-chain-count mono">{{ c.count }}</span>
-                        <span class="masp-vis-dot" :class="{ 'is-on': c.visible }" />
-                    </button>
+                    <template v-for="c in chains" :key="c.id">
+                        <button
+                            type="button"
+                            class="masp-chain-row"
+                            :class="{ 'is-active': c.active }"
+                            @click="onChainClick(c)"
+                        >
+                            <span class="masp-chain-chip" :style="{ '--c': c.color }">{{ c.id }}</span>
+                            <span class="masp-chain-name">{{ c.name }}</span>
+                            <span class="masp-chain-count mono">{{ c.count }}</span>
+                            <span
+                                role="button"
+                                tabindex="0"
+                                class="masp-vis-dot"
+                                :class="{ 'is-on': c.visible }"
+                                :aria-label="$t('structure.chains.visibility')"
+                                @click.stop="toggleChain(c.id)"
+                                @keydown.enter.stop="toggleChain(c.id)"
+                                @keydown.space.prevent.stop="toggleChain(c.id)"
+                            />
+                        </button>
+
+                        <div v-if="expandedChains.has(c.id)" class="masp-residue-list">
+                            <button
+                                v-for="r in residuesByChain.get(c.index) ?? []"
+                                :key="r.index"
+                                type="button"
+                                class="masp-residue-row"
+                                :class="{
+                                    'is-active': store.selection?.kind === 'residue'
+                                        && store.selection.index === r.index,
+                                }"
+                                @click="selectResidue(r.index)"
+                            >
+                                <span class="masp-residue-name">{{ r.name }}{{ r.seq }}</span>
+                                <span class="masp-residue-count mono">{{ r.count }}</span>
+                            </button>
+                        </div>
+                    </template>
                 </div>
                 <p v-else class="masp-empty">{{ $t('structure.chains.empty') }}</p>
+
+                <!-- 配体：HETATM 非水残基 -->
+                <div v-if="ligands.length" class="masp-ligand-list">
+                    <p class="masp-subtitle">{{ $t('structure.chains.ligands.title') }}</p>
+                    <button
+                        v-for="ligand in ligands"
+                        :key="ligand.index"
+                        type="button"
+                        class="masp-residue-row masp-ligand-row"
+                        @click="selectLigand(ligand.index)"
+                    >
+                        <span class="masp-residue-name">{{ ligand.name }}{{ ligand.seq }} · {{ ligand.chain }}</span>
+                        <span class="masp-residue-count mono">{{ ligand.count }}</span>
+                    </button>
+                </div>
             </mv-panel-section>
 
             <!-- 元素图例 -->
@@ -112,6 +153,7 @@ import MvDropzone from '@/components/base/MV-DropZone.vue';
 import MvPanelSection from '@/components/base/MV-PanelSection.vue';
 import MvIconButton from '@/components/widget/MV-IconButton.vue';
 import { useMoleculeStore } from '@/stores/molecule.store';
+import { elementByZ } from '@wmv/structure';
 
 const { t } = useI18n();
 const store = useMoleculeStore();
@@ -132,34 +174,132 @@ const chainVisibility = ref<Record<string, boolean>>({});
 const activeChainId = ref<string | null>(null);
 
 const chains = computed(() => {
-    const map = new Map<string, { id: string; count: number; color: string }>();
-    for (const a of store.atoms) {
-        const id = a.chain ?? '?';
-        if (!map.has(id)) {
-            map.set(id, { id, count: 0, color: chainColor(id) });
+    const data = store.structure;
+    const chainsCsv = data?.chains;
+
+    if (!data || !chainsCsv) return [];
+
+    // 每个链的原子数（按 chainIndex 统计一次，不建对象数组）
+    const counts = new Uint32Array(chainsCsv.id.length);
+    const chainIndex = data.atoms.chainIndex;
+
+    if (chainIndex) {
+        for (let i = 0; i < data.meta.atomCount; i++) {
+            const c = chainIndex[i]!;
+
+            if (c >= 0 && c < counts.length) counts[c] = counts[c]! + 1;
         }
-        map.get(id)!.count += 1;
     }
-    return Array.from(map.values()).map((c) => ({
-        ...c,
-        name: c.id === '?' ? t('structure.chains.unknown') : t('structure.chains.peptide', { id: c.id }),
-        active: activeChainId.value === c.id,
-        visible: chainVisibility.value[c.id] ?? true,
+
+    return chainsCsv.id.map((id, index) => ({
+        index,
+        id,
+        count: counts[index] ?? 0,
+        color: chainColor(id),
+        name: id === '' ? t('structure.chains.unknown') : t('structure.chains.peptide', { id }),
+        active: activeChainId.value === id
+            || (store.selection?.kind === 'chain' && store.selection.index === index),
+        visible: chainVisibility.value[id] ?? true,
     }));
 });
 
 const chainsShown = computed(() => chains.value.filter((c) => c.visible).length);
 const chainsTotal = computed(() => chains.value.length);
 
-const legend = computed(() => {
-    const map = new Map<string, { symbol: string; count: number; color: string }>();
-    for (const a of store.atoms) {
-        if (!map.has(a.symbol)) {
-            map.set(a.symbol, { symbol: a.symbol, count: 0, color: rgbToHex(a.color) });
-        }
-        map.get(a.symbol)!.count += 1;
+// ---- 残基树（懒展开：只对展开的链渲染残基行） ----
+interface ResidueItem {
+    index: number;
+    name: string;
+    seq: number;
+    count: number;
+    chain: string;
+}
+
+const expandedChains = ref<Set<string>>(new Set());
+
+const residuesByChain = computed(() => {
+    const data = store.structure;
+    const residues = data?.residues;
+    const map = new Map<number, ResidueItem[]>();
+
+    if (!residues) return map;
+
+    const chainIds = data?.chains?.id;
+    const water = new Set(["HOH", "WAT", "H2O", "DOD", "SOL"]);
+
+    for (let r = 0; r < residues.name.length; r++) {
+        const name = residues.name[r]!;
+
+        if (water.has(name)) continue;
+
+        const chain = residues.chainIndex[r] ?? 0;
+        const list = map.get(chain);
+
+        const item: ResidueItem = {
+            index: r,
+            name,
+            seq: residues.seqNumber[r] ?? 0,
+            count: residues.count[r] ?? 0,
+            chain: chainIds?.[chain] ?? "",
+        };
+
+        if (list) list.push(item);
+        else map.set(chain, [item]);
     }
-    return Array.from(map.values());
+
+    return map;
+});
+
+/** HETATM 非水残基：配体快捷入口 */
+const ligands = computed<ResidueItem[]>(() => {
+    const data = store.structure;
+    const residues = data?.residues;
+    const flags = data?.atoms.flags;
+    const residueIndex = data?.atoms.residueIndex;
+
+    if (!residues || !flags || !residueIndex) return [];
+
+    const seen = new Set<number>();
+
+    for (let i = 0; i < data.meta.atomCount; i++) {
+        const flag = flags[i]!;
+
+        if ((flag & 1) === 0 || (flag & 2) !== 0) continue;
+
+        const r = residueIndex[i] ?? -1;
+
+        if (r >= 0) seen.add(r);
+    }
+
+    return [...seen].map(r => ({
+        index: r,
+        name: residues.name[r]!,
+        seq: residues.seqNumber[r] ?? 0,
+        count: residues.count[r] ?? 0,
+        chain: data.chains?.id[residues.chainIndex[r] ?? 0] ?? "",
+    }));
+});
+
+const legend = computed(() => {
+    const data = store.structure;
+    if (!data) return [];
+
+    const map = new Map<number, { symbol: string; count: number; color: string }>();
+    const elements = data.atoms.element;
+
+    for (let i = 0; i < data.meta.atomCount; i++) {
+        const z = elements[i] ?? 0;
+        const existing = map.get(z);
+
+        if (existing) existing.count += 1;
+        else {
+            const element = elementByZ(z);
+
+            map.set(z, {symbol: element.symbol, count: 1, color: element.cpkColor});
+        }
+    }
+
+    return [...map.values()];
 });
 
 function chainColor(id: string): string {
@@ -229,12 +369,41 @@ function triggerFileSelect() {
 defineExpose({ triggerFileSelect });
 
 function toggleChain(id: string) {
-    activeChainId.value = id === activeChainId.value ? null : id;
     chainVisibility.value = {
         ...chainVisibility.value,
         [id]: !(chainVisibility.value[id] ?? true),
     };
     emit('toggleChain', id);
+}
+
+/** 点击链行：选中整条链（引擎重建时高亮） */
+function selectChain(index: number) {
+    const chain = chains.value.find((c) => c.index === index);
+
+    activeChainId.value = activeChainId.value === chain?.id ? null : (chain?.id ?? null);
+    store.selectChain(store.selection?.kind === 'chain' && store.selection.index === index ? null : index);
+}
+
+/** 链行：选中整链 + 展开/收起残基 */
+function onChainClick(chain: {index: number; id: string}) {
+    selectChain(chain.index);
+
+    const next = new Set(expandedChains.value);
+
+    if (next.has(chain.id)) next.delete(chain.id);
+    else next.add(chain.id);
+
+    expandedChains.value = next;
+}
+
+function selectResidue(index: number) {
+    store.selectResidue(index);
+}
+
+/** 配体：选中该残基并把口袋焦点切到它 */
+function selectLigand(index: number) {
+    store.selectResidue(index);
+    store.setFocus({residueIndexes: [index], radius: 6});
 }
 
 function onShowAll() {
@@ -351,11 +520,69 @@ function onShowAll() {
             font-size: 10.5px
             color: var(--fg-faint)
 
+    &-residue-list
+        display: flex
+        flex-direction: column
+        gap: 1px
+        max-height: 210px
+        overflow: auto
+        margin: 0 0 4px 20px
+        padding-left: 6px
+        border-left: 1px solid var(--line)
+
+    &-residue-row
+        display: flex
+        align-items: center
+        justify-content: space-between
+        gap: 8px
+        padding: 3px 7px
+        font-size: 11px
+        text-align: left
+        color: var(--fg-faint)
+        border-radius: 3px
+
+        &:hover
+            color: var(--fg)
+            background: var(--bg-hover)
+
+        &.is-active
+            color: var(--fg)
+            background: var(--accent-soft)
+
+    &-residue-name
+        +ellipsis()
+
+    &-residue-count
+        font-size: 9.5px
+        color: var(--fg-faint)
+
+    &-ligand-list
+        display: flex
+        flex-direction: column
+        gap: 1px
+        margin-top: 8px
+        padding-top: 6px
+        border-top: 1px solid var(--line)
+
+    &-ligand-row
+        color: var(--fg-muted)
+
+    &-subtitle
+        margin: 0 0 3px
+        padding: 0 7px
+        font-size: 10px
+        letter-spacing: .08em
+        text-transform: uppercase
+        color: var(--fg-faint)
+
     &-vis-dot
         width: 8px
         height: 8px
+        padding: 0
         border-radius: 50%
         border: 1px solid var(--line-strong)
+        background: transparent
+        cursor: pointer
 
         &.is-on
             background: var(--accent)
@@ -387,3 +614,6 @@ function onShowAll() {
             background: var(--c)
             box-shadow: inset 0 0 0 1px var(--atom-stroke)
 </style>
+
+
+

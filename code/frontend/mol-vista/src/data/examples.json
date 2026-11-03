@@ -1,0 +1,146 @@
+[
+  {
+    "id": "4hhb",
+    "name": "血红蛋白 4HHB",
+    "category": "complex",
+    "format": "pdb",
+    "source": "pdb/血红蛋白-4HHB.pdb",
+    "description": "四聚体、血红素与氧结合；口袋教学的首选示例。",
+    "tags": ["四聚体", "血红素", "氧结合"]
+  },
+  {
+    "id": "6lu7",
+    "name": "SARS-CoV-2 主蛋白酶 + N3",
+    "category": "complex",
+    "format": "pdb",
+    "source": "pdb/SARS-CoV-2 主蛋白酶 + 抑制剂 N3-6LU7.pdb",
+    "description": "抑制剂 02J 占据催化位点；展示药物结合口袋。",
+    "tags": ["蛋白酶", "抑制剂", "口袋"]
+  },
+  {
+    "id": "1iep",
+    "name": "Abl 激酶 + 伊马替尼",
+    "category": "complex",
+    "format": "pdb",
+    "source": "pdb/Abl 激酶 + 伊马替尼-1IEP.pdb",
+    "description": "格列卫与 Abl 激酶结合；靶向药物经典案例。",
+    "tags": ["激酶", "伊马替尼", "靶向药"]
+  },
+  {
+    "id": "3ert",
+    "name": "雌激素受体 + 他莫昔芬",
+    "category": "complex",
+    "format": "pdb",
+    "source": "pdb/雌激素受体 + 他莫昔芬-3ERT.pdb",
+    "description": "核受体与拮抗剂结合；理解构象与拮抗机制。",
+    "tags": ["核受体", "他莫昔芬"]
+  },
+  {
+    "id": "1crn",
+    "name": "小蛋白 1CRN",
+    "category": "protein",
+    "format": "pdb",
+    "source": "pdb/小蛋白-1CRN.pdb",
+    "description": "最小的二级结构示例：一段 α 螺旋与 β 折叠。",
+    "tags": ["小蛋白", "二级结构"]
+  },
+  {
+    "id": "1ubq",
+    "name": "泛素 1UBQ",
+    "category": "protein",
+    "format": "pdb",
+    "source": "pdb/泛素-1UBQ.pdb",
+    "description": "泛素-蛋白酶体标签；常见教学蛋白。",
+    "tags": ["泛素", "折叠"]
+  },
+  {
+    "id": "1aki",
+    "name": "溶菌酶 1AKI",
+    "category": "protein",
+    "format": "pdb",
+    "source": "pdb/溶菌酶-1AKI.pdb",
+    "description": "经典酶结构；适合观察底物口袋与二硫键。",
+    "tags": ["酶", "二硫键"]
+  },
+  {
+    "id": "aspirin",
+    "name": "阿司匹林",
+    "category": "small",
+    "format": "sdf",
+    "source": "sdf/阿司匹林-2244.sdf",
+    "description": "乙酰水杨酸；小分子球棍与官能团示例。",
+    "tags": ["药物", "羧酸", "酯"]
+  },
+  {
+    "id": "caffeine",
+    "name": "咖啡因",
+    "category": "small",
+    "format": "sdf",
+    "source": "sdf/咖啡因-2519.sdf",
+    "description": "嘌呤类生物碱；环系与杂原子示例。",
+    "tags": ["生物碱", "嘌呤"]
+  },
+  {
+    "id": "ibuprofen",
+    "name": "布洛芬",
+    "category": "small",
+    "format": "sdf",
+    "source": "sdf/布洛芬-3672.sdf",
+    "description": "非甾体抗炎药；手性中心与芳环。",
+    "tags": ["药物", "手性"]
+  },
+  {
+    "id": "paracetamol",
+    "name": "对乙酰氨基酚",
+    "category": "small",
+    "format": "sdf",
+    "source": "sdf/对乙酰氨基酚-1983.sdf",
+    "description": "常见解热镇痛药；酰胺与酚羟基。",
+    "tags": ["药物", "酰胺"]
+  },
+  {
+    "id": "benzene",
+    "name": "苯",
+    "category": "small",
+    "format": "sdf",
+    "source": "sdf/苯-241.sdf",
+    "description": "最简单的芳香环；键级/芳香性示例。",
+    "tags": ["芳环", "基础"]
+  },
+  {
+    "id": "glucose",
+    "name": "葡萄糖",
+    "category": "small",
+    "format": "sdf",
+    "source": "sdf/葡萄糖-5793.sdf",
+    "description": "单糖的环状构型；多羟基示例。",
+    "tags": ["糖", "多羟基"]
+  },
+  {
+    "id": "imatinib",
+    "name": "伊马替尼",
+    "category": "small",
+    "format": "sdf",
+    "source": "sdf/伊马替尼-5291.sdf",
+    "description": "格列卫小分子本体；与 1IEP 配合讲解。",
+    "tags": ["药物", "激酶抑制剂"]
+  },
+  {
+    "id": "ethanol",
+    "name": "乙醇",
+    "category": "small",
+    "format": "sdf",
+    "source": "sdf/乙醇-702.sdf",
+    "description": "最小有机分子之一；入门示例。",
+    "tags": ["基础", "醇"]
+  },
+  {
+    "id": "atp",
+    "name": "ATP",
+    "category": "small",
+    "format": "sdf",
+    "source": "sdf/ATP-5957.sdf",
+    "description": "能量货币；磷酸基团与核苷结构。",
+    "tags": ["核苷酸", "磷酸"]
+  }
+]

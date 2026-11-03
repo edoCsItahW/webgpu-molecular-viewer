@@ -14,5 +14,7 @@
  * @copyright CC BY-NC-SA 2026. All rights reserved.
  * */
 
-export * from "./StructureData";
-export * from "./element/ElementTable";
+export * from "./StructureData.js";
+export * from "./StructureView.js";
+export * from "./element/ElementTable.js";
+

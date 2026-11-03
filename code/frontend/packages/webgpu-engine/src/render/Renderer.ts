@@ -24,6 +24,8 @@ import * as builtinShaders from "./shaders";
 import {PBRPass} from "./passes/PBRPass";
 import {PickingPass} from "./passes/PickingPass";
 import {SSAOPass} from "./passes/SSAOPass";
+import {CullPass} from "./passes/CullPass";
+import {CompositePass} from "./passes/CompositePass";
 import type {Scene} from "./Scene";
 import type {FrameStats} from "./FrameStats";
 import { Console, type Nullable } from "@wmv/common";
@@ -157,6 +159,10 @@ export class Renderer {
 
     /** picking pass 的引用，用于按需请求拾取 */
     #pickingPass: Nullable<PickingPass> = null;
+
+    /** SSAO / Composite 的引用，用于运行时开关 AO */
+    #ssaoPass: Nullable<SSAOPass> = null;
+    #compositePass: Nullable<CompositePass> = null;
 
     /** 上层注册的拾取回调 */
     #onPickCallbacks: Array<(info: {id: number; screenX: number; screenY: number;}) => void> = [];
@@ -554,6 +560,11 @@ export class Renderer {
                 usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC
             });
 
+        // 剔除必须在 pbr 之前：Kahn 排序对同 indegree 的 pass 保持注册顺序
+        const cullPass = new CullPass(this);
+        this.passes.add(cullPass);
+        this.#createdPasses.push(cullPass);
+
         // updateUniforms: false —— scene / object 的 uniform 已由 Renderer.uploadUniforms
         // 每帧上传（Render.md 的分工），pass 再写一遍是重复劳动。
         const pbrPass = new PBRPass(this, {
@@ -573,6 +584,16 @@ export class Renderer {
 
             this.passes.add(ssaoPass);
             this.#createdPasses.push(ssaoPass);
+            this.#ssaoPass = ssaoPass;
+
+            const compositePass = new CompositePass(this, {
+                colorTexture: "scene-color",
+                aoTexture: "ssao"
+            });
+
+            this.passes.add(compositePass);
+            this.#createdPasses.push(compositePass);
+            this.#compositePass = compositePass;
         }
 
         if (usePicking) {
@@ -590,7 +611,23 @@ export class Renderer {
         }
     }
 
+    /**
+     * 运行时开关 SSAO。
+     *
+     * 关闭时跳过 SSAO pass，Composite 直出 scene-color（PBR 仍写中间纹理）。
+     * 只有构造时 `ssao: true`（已声明中间纹理与 composite）才有效。
+     */
+    setSsaoEnabled(enabled: boolean): void {
+        this.assertAlive();
+
+        if (!this.#ssaoPass || !this.#compositePass) return;
+
+        this.#ssaoPass.enabled = enabled;
+        this.#compositePass.setAo(enabled);
+    }
+
     private assertAlive(): void {
         if (this.#disposed) throw new Error(t("Renderer.assertAlive.error_1"));
     }
 }
+

@@ -13,3 +13,7 @@
 
 # backend
 **/__pycache__/
+
+# large local benchmark fixtures (not part of the app bundle)
+code/backend/assets/cif/
+code/backend/assets/pdb/1FFK.pdb

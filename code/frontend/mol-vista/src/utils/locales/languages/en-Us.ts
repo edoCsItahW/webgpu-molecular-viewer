@@ -36,6 +36,8 @@ export default {
     topbar: {
         importStructure: "Import structure",
         fitView: "Fit view",
+        share: "Copy share link",
+        screenshot: "Export PNG screenshot",
         themeAria: "Theme switcher",
         doc: {
             ariaLabel: "Structure metadata",
@@ -62,6 +64,8 @@ export default {
             peptide: "Peptide {id}",
             water: "Water molecules",
             unknown: "Unknown chain",
+            visibility: "Toggle visibility",
+            ligands: {title: "Ligands"},
             empty: "No chain data"
         },
         legend: {
@@ -156,7 +160,11 @@ export default {
                 ssao: "Ambient occlusion (SSAO)",
                 outline: "Outline",
                 grid: "Coordinate grid",
-                hydrogens: "Hydrogen atoms"
+                hydrogens: "Hydrogen atoms",
+                waters: "Water molecules",
+                ligands: "Ligands",
+                sidechains: "Side chains",
+                labels: "Annotation labels"
             },
             radius: {
                 title: "Atom radius scaling",
@@ -180,6 +188,11 @@ export default {
                 reset: "Reset",
                 steps: "{count} steps"
             },
+            timeline: {
+                title: "Timeline",
+                speed: "Speed (steps/frame)",
+                loop: "Loop playback"
+            },
             params: {
                 title: "Parameters",
                 integrator: "Velocity-Verlet",
@@ -198,6 +211,26 @@ export default {
             }
         }
     },
+    library: {
+        title: "Examples",
+        search: "Search examples or tags…",
+        empty: "No matching examples",
+        loading: "Loading…",
+        close: "Close",
+        all: "All",
+        protein: "Proteins",
+        complex: "Protein + ligand",
+        small: "Small molecules"
+    },
+    measure: {
+        distance: "Distance",
+        angle: "Angle",
+        dihedral: "Dihedral",
+        pickTwo: "Distance: pick two atoms",
+        pickThree: "Angle: pick three atoms (second is the vertex)",
+        pickFour: "Dihedral: pick four atoms (middle two define the axis)",
+        need: "{n} more atom(s)"
+    },
     statusbar: {
         format: "PDB",
         summary: "{atoms} atoms · {bonds} bonds · {residues} residues",
@@ -211,3 +244,13 @@ export default {
         }
     }
 } as const;
+
+
+
+
+
+
+
+
+
+

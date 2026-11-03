@@ -52,33 +52,33 @@ defineEmits<{
 <style lang="sass" scoped>
 @use '@/assets/styles/mixins' as *
 
-.mv-tab-bar
-    display: flex
-    height: 34px
-    border-bottom: 1px solid var(--line)
-    background: var(--bg-panel)
+.mvtb-tabs
+    display: grid
+    grid-auto-flow: column
+    grid-auto-columns: 1fr
+    gap: 2px
+    height: auto
+    padding: 10px 12px
+    border-bottom: 1px solid rgba(255, 255, 255, .06)
+    background: transparent
 
-.mv-tab
+.mvtb-tab
     position: relative
-    flex: 1
-    font-size: 11.5px
-    color: var(--fg-faint)
-    transition: color .14s cubic-bezier(.2, .7, .3, 1), background .14s cubic-bezier(.2, .7, .3, 1)
+    padding: 7px 4px
+    font-size: 11px
+    color: rgba(244, 247, 249, .42)
+    background: transparent
+    border: 0
+    border-radius: 8px
+    cursor: pointer
+    transition: color .14s, background .14s
 
     &:hover
-        color: var(--fg-muted)
-        background: var(--bg-hover)
+        color: rgba(244, 247, 249, .7)
+        background: rgba(255, 255, 255, .04)
 
     &.is-active
-        color: var(--fg)
+        color: var(--accent)
         font-weight: 550
-
-        &::after
-            content: ''
-            position: absolute
-            left: 0
-            right: 0
-            bottom: -1px
-            height: 2px
-            background: var(--accent)
+        background: var(--accent-soft)
 </style>

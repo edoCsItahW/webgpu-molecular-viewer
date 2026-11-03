@@ -16,9 +16,19 @@
 import type {ShaderLibrary} from "../../gpu/ShaderLibrary";
 import uniformsSource from "./common/uniforms.wgsl?raw";
 import reconstructSource from "./common/reconstruct.wgsl?raw";
+import impostorSource from "./common/impostor.wgsl?raw";
 import pbrSource from "./pbr.wgsl?raw";
+import pbrBatchSource from "./pbr-batch.wgsl?raw";
+import pbrSphereSource from "./pbr-sphere.wgsl?raw";
+import pbrCylinderSource from "./pbr-cylinder.wgsl?raw";
 import pickingSource from "./picking.wgsl?raw";
+import pickingBatchSource from "./picking-batch.wgsl?raw";
+import pickingComputeSource from "./picking-compute.wgsl?raw";
+import cullSphereSource from "./cull-sphere.wgsl?raw";
+import cullCylinderSource from "./cull-cylinder.wgsl?raw";
 import ssaoSource from "./ssao.wgsl?raw";
+import mdSource from "./md.wgsl?raw";
+import compositeSource from "./composite.wgsl?raw";
 
 
 /**
@@ -38,8 +48,20 @@ export function registerBuiltinShaders(shaders: ShaderLibrary): void {
     shaders.registerMany({
         "common/uniforms": uniformsSource,
         "common/reconstruct": reconstructSource,
+        "common/impostor": impostorSource,
         "pbr": pbrSource,
+        "pbr-batch": pbrBatchSource,
+        "pbr-sphere": pbrSphereSource,
+        "pbr-cylinder": pbrCylinderSource,
         "picking": pickingSource,
+        "picking-batch": pickingBatchSource,
+        "picking-compute": pickingComputeSource,
+        "cull-sphere": cullSphereSource,
+        "cull-cylinder": cullCylinderSource,
         "ssao": ssaoSource,
+        "md": mdSource,
+        "composite": compositeSource,
     });
 }
+
+
